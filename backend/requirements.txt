@@ -1,0 +1,41 @@
+# Core Flask packages
+flask>=2.3.0
+flask-cors>=4.0.0
+flask-jwt-extended>=4.5.3
+flask-sqlalchemy>=3.1.1
+python-dotenv>=1.0.0
+gunicorn>=21.2.0
+flask-limiter>=3.5.0
+
+# Security packages
+cryptography>=41.0.5
+pyotp>=2.9.0
+bleach>=6.1.0
+bcrypt>=4.0.1
+
+# Use pre-built wheels for data science packages - simplified versions
+numpy>=1.26.0
+pandas>=2.1.3
+scikit-learn>=1.3.2
+opencv-python>=4.8.0
+
+# Note: We've removed the following dependencies that require complex builds:
+# - face-recognition (requires dlib and CMake)
+# - opencv-python-headless (can be complex to install)
+#
+# The application will use alternative methods for security that don't
+# require these dependencies.
+
+# Face recognition (Windows-friendly)
+# On Windows we recommend using dlib-bin which provides prebuilt wheels.
+# On Linux/Mac, install `dlib` from your package manager or build tools, then pip install face-recognition.
+Pillow>=12.0.0
+
+# Optional: Face recognition (Windows)
+# Installing face_recognition via pip will try to build `dlib` from source and fail without CMake.
+# To use face recognition on Windows, DO NOT install via this file.
+# Instead, run the helper script `install_face_deps.ps1` or follow INSTALL_FACE_RECOGNITION.md.
+# This keeps `pip install -r requirements.txt` fast and reliable on all platforms.
+
+# MongoDB client
+pymongo>=4.7.0
