@@ -233,80 +233,84 @@ function Dashboard({ token, userRole, onLogout }) {
           </div>
         </div>
         
-        {/* Data Entry Form */}
-        <div className="eci-card">
-          <h2>Add Election Data</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="precinct">Precinct Name</label>
-              <input
-                type="text"
-                className="form-control"
-                id="precinct"
-                name="precinct"
-                value={formData.precinct}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="votes_candidate_a">Votes for Candidate A</label>
-              <input
-                type="number"
-                className="form-control"
-                id="votes_candidate_a"
-                name="votes_candidate_a"
-                value={formData.votes_candidate_a}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="votes_candidate_b">Votes for Candidate B</label>
-              <input
-                type="number"
-                className="form-control"
-                id="votes_candidate_b"
-                name="votes_candidate_b"
-                value={formData.votes_candidate_b}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="registered_voters">Registered Voters</label>
-              <input
-                type="number"
-                className="form-control"
-                id="registered_voters"
-                name="registered_voters"
-                value={formData.registered_voters}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="turnout_percentage">Turnout Percentage</label>
-              <input
-                type="number"
-                className="form-control"
-                id="turnout_percentage"
-                name="turnout_percentage"
-                value={formData.turnout_percentage}
-                onChange={handleInputChange}
-                readOnly
-              />
-            </div>
-            <button type="submit" className="btn btn-primary">Submit Data</button>
-          </form>
-        </div>
+        {/* Data Entry Form (Admin only) */}
+        {userRole === 'admin' && (
+          <div className="eci-card">
+            <h2>Add Election Data</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="precinct">Precinct Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  id="precinct"
+                  name="precinct"
+                  value={formData.precinct}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="votes_candidate_a">Votes for Candidate A</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  id="votes_candidate_a"
+                  name="votes_candidate_a"
+                  value={formData.votes_candidate_a}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="votes_candidate_b">Votes for Candidate B</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  id="votes_candidate_b"
+                  name="votes_candidate_b"
+                  value={formData.votes_candidate_b}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="registered_voters">Registered Voters</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  id="registered_voters"
+                  name="registered_voters"
+                  value={formData.registered_voters}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="turnout_percentage">Turnout Percentage</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  id="turnout_percentage"
+                  name="turnout_percentage"
+                  value={formData.turnout_percentage}
+                  onChange={handleInputChange}
+                  readOnly
+                />
+              </div>
+              <button type="submit" className="btn btn-primary">Submit Data</button>
+            </form>
+          </div>
+        )}
         
-        {/* Fraud Detection */}
-        <div className="eci-card">
-          <h2>Fraud Detection</h2>
-          <p>Run machine learning analysis to detect potential election fraud based on statistical anomalies.</p>
-          <button className="btn btn-primary" onClick={runAnalysis}>Run Analysis</button>
-        </div>
+        {/* Fraud Detection (Admin only) */}
+        {userRole === 'admin' && (
+          <div className="eci-card">
+            <h2>Fraud Detection</h2>
+            <p>Run machine learning analysis to detect potential election fraud based on statistical anomalies.</p>
+            <button className="btn btn-primary" onClick={runAnalysis}>Run Analysis</button>
+          </div>
+        )}
         
         {/* Election Data Table */}
         <div className="eci-card">

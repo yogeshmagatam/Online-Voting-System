@@ -1,20 +1,21 @@
 import React from 'react';
 import SiteLayout from '../layout/SiteLayout';
 
-const Hero = ({ onRegisterClick }) => (
+const Hero = ({ onRegisterClick, onRegisterCandidateClick }) => (
   <section className="eci-hero">
     <div className="eci-hero-content">
       <h2>Empowering Every Voter</h2>
       <p>Register, verify your identity, and cast your vote securely.</p>
       <div className="eci-hero-actions">
-        <button className="btn btn-primary" onClick={onRegisterClick}>Get Started</button>
+        <button className="btn btn-primary" onClick={onRegisterClick}>Register as Voter</button>
+        <button className="btn" onClick={onRegisterCandidateClick}>Register as Candidate</button>
         <a className="btn btn-outline" href="#learn">Learn More</a>
       </div>
     </div>
   </section>
 );
 
-const QuickLinks = ({ onLoginClick, onRegisterClick }) => (
+const QuickLinks = ({ onLoginClick, onRegisterClick, onRegisterCandidateClick }) => (
   <section id="services" className="eci-quicklinks">
     <h3>Quick Links</h3>
     <div className="eci-grid">
@@ -22,6 +23,11 @@ const QuickLinks = ({ onLoginClick, onRegisterClick }) => (
         <div className="eci-card-icon">📝</div>
         <div className="eci-card-title">Register as Voter</div>
         <div className="eci-card-desc">Create your secure account</div>
+      </a>
+      <a className="eci-card" onClick={onRegisterCandidateClick} href="#register-candidate" role="button">
+        <div className="eci-card-icon">🏛️</div>
+        <div className="eci-card-title">Register as Candidate</div>
+        <div className="eci-card-desc">Create your candidate profile</div>
       </a>
       <a className="eci-card" onClick={onLoginClick} href="#login" role="button">
         <div className="eci-card-icon">🔐</div>
@@ -58,11 +64,11 @@ const Updates = () => (
 
 const Footer = () => null; // Footer is now provided by SiteLayout
 
-export default function Home({ onLoginClick, onRegisterClick }) {
+export default function Home({ onLoginClick, onRegisterClick, onRegisterCandidateClick }) {
   return (
     <SiteLayout onLoginClick={onLoginClick} onRegisterClick={onRegisterClick} isLoggedIn={false}>
-      <Hero onRegisterClick={onRegisterClick} />
-      <QuickLinks onLoginClick={onLoginClick} onRegisterClick={onRegisterClick} />
+      <Hero onRegisterClick={onRegisterClick} onRegisterCandidateClick={onRegisterCandidateClick} />
+      <QuickLinks onLoginClick={onLoginClick} onRegisterClick={onRegisterClick} onRegisterCandidateClick={onRegisterCandidateClick} />
       <Updates />
     </SiteLayout>
   );
