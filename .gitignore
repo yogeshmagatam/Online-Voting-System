@@ -1,5 +1,5 @@
-./.venv
-./frontend/node_modules/*
+.venv
+frontend/node_modules/*
 *bat
 *.log
 .DS_Store
