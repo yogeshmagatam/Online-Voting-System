@@ -1,6 +1,5 @@
 .venv
 frontend/node_modules/*
-*bat
 *.log
 .DS_Store
 .env
@@ -8,3 +7,4 @@ __pycache__/
 *.pyc
 .vscode/
 *pkl
+backend/__pycache__/
