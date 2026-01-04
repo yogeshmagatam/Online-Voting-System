@@ -33,6 +33,7 @@ function Register({ onNavigateToLogin, onNavigateToCandidate }) {
     // Client-side captcha validation
     if (!captcha || captcha.trim().toUpperCase() !== captchaText.toUpperCase()) {
       setError('Incorrect captcha');
+      setCaptcha('');
       generateCaptcha();
       return;
     }
@@ -367,8 +368,12 @@ function Register({ onNavigateToLogin, onNavigateToCandidate }) {
                   type="button"
                   className={`btn ${!usingCamera ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => {
-                    setUsingCamera(false);
-                    stopCamera();
+                    if (!usingCamera) {
+                      document.getElementById('photoFileInput').click();
+                    } else {
+                      setUsingCamera(false);
+                      stopCamera();
+                    }
                   }}
                 >
                   Upload Photo
@@ -396,13 +401,15 @@ function Register({ onNavigateToLogin, onNavigateToCandidate }) {
                   </div>
                 </div>
               ) : (
-                <input
-                  type="file"
-                  className="form-control"
-                  id="photo"
-                  accept="image/*"
-                  onChange={onSelectPhoto}
-                />
+                <>
+                  <input
+                    type="file"
+                    id="photoFileInput"
+                    accept="image/*"
+                    onChange={onSelectPhoto}
+                    style={{ display: 'none' }}
+                  />
+                </>
               )}
 
               {photoDataUrl && (

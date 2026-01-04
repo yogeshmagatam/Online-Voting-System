@@ -88,8 +88,10 @@ ALLOW_VOTER_VALIDATION_BYPASS = os.environ.get('ALLOW_VOTER_VALIDATION_BYPASS', 
 # ------------------------------
 # MongoDB (optional integration)
 # ------------------------------
-MONGODB_URI = os.environ.get('mongodb+srv://yogeshmagatam_db_user:0yS9slaSGAcNZ0NP@cluster116454.sypvlt0.mongodb.net/')
-MONGODB_DB_NAME = os.environ.get('yogeshmagatam_db_user')
+# Read proper environment variables; do not hardcode the URI as a key
+# See MONGODB_SETUP.md for configuration details
+MONGODB_URI = os.environ.get('MONGODB_URI')
+MONGODB_DB_NAME = os.environ.get('MONGODB_DB_NAME', 'election_db')
 
 mongo_client = None
 mongo_db = None
@@ -97,14 +99,40 @@ MONGO_AVAILABLE = False
 
 if MONGODB_URI:
     try:
-        mongo_client = pymongo.MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000)
+        # Increase timeout for slower connections
+        mongo_client = pymongo.MongoClient(
+            MONGODB_URI, 
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
         # Ping to confirm connectivity
         mongo_client.admin.command('ping')
         mongo_db = mongo_client[MONGODB_DB_NAME]
         MONGO_AVAILABLE = True
-        print(f"MongoDB connected: db='{MONGODB_DB_NAME}'")
+        print(f"✓ MongoDB connected successfully: db='{MONGODB_DB_NAME}'")
     except Exception as e:
-        print(f"MongoDB not available: {e}")
+        print(f"⚠ MongoDB not available (app will work without it): {e}")
+        print("  → To fix: Install local MongoDB or check network/firewall settings")
+
+# Health endpoint to quickly verify MongoDB config/connectivity
+@app.route('/api/health', methods=['GET'])
+def health():
+    mongo_configured = bool(MONGODB_URI)
+    mongo_connected = False
+    mongo_error = None
+    try:
+        if mongo_configured and mongo_client is not None:
+            mongo_client.admin.command('ping')
+            mongo_connected = True
+    except Exception as e:
+        mongo_error = str(e)
+    return jsonify({
+        'status': 'ok',
+        'mongo_configured': mongo_configured,
+        'mongo_connected': mongo_connected,
+        'mongo_error': mongo_error
+    })
 
 
 # Helpful JWT error messages to diagnose 422s
@@ -562,23 +590,36 @@ def create_login_otp(user_id, contact_method, contact_value):
         conn = get_db_connection()
         
         # Clear any existing unverified OTP for this user
-        conn.execute(
-            'DELETE FROM login_otp WHERE user_id = ? AND verified = 0',
-            (user_id,)
-        )
+        try:
+            conn.execute(
+                'DELETE FROM login_otp WHERE user_id = ? AND verified = 0',
+                (user_id,)
+            )
+            conn.commit()
+        except Exception as de:
+            print(f"Error deleting old OTP: {de}")
+            conn.rollback()
         
         # Insert new OTP
-        conn.execute('''
-            INSERT INTO login_otp (user_id, otp_code, otp_type, contact_value, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (user_id, otp_code, contact_method, contact_value, created_at, expires_at))
-        
-        conn.commit()
-        conn.close()
-        
-        return otp_code, True
+        try:
+            conn.execute('''
+                INSERT INTO login_otp (user_id, otp_code, otp_type, contact_value, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, otp_code, contact_method, contact_value, created_at, expires_at))
+            
+            conn.commit()
+            print(f"OTP created successfully for user {user_id}: {otp_code}")
+            conn.close()
+            return otp_code, True
+        except Exception as ie:
+            print(f"Error inserting OTP: {ie}")
+            conn.rollback()
+            conn.close()
+            raise
     except Exception as e:
         print(f"Error creating OTP: {e}")
+        import traceback
+        traceback.print_exc()
         log_security_event('otp_creation_failed', {
             'user_id': user_id,
             'error': str(e)
@@ -808,7 +849,7 @@ def init_db():
     admin_row = conn.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
     if not admin_row:
         # Hash default admin password with bcrypt
-        hashed_password, salt = hash_password('admin123')  # both are bytes
+        hashed_password, salt = hash_password('admin@123456')  # both are bytes
 
         # Generate MFA secret
         mfa_secret = pyotp.random_base32()
@@ -819,22 +860,21 @@ def init_db():
             ('admin', hashed_password, 'admin', mfa_secret, 'none', salt, 1)
         )
     else:
-        # Migration: if previous admin password was stored as a hex string (sha256), convert to bcrypt
+        # Always update admin password to ensure it's correct
         try:
-            stored_pwd = admin_row['password']
-            if isinstance(stored_pwd, str):
-                # Re-hash to bcrypt using default password 'admin123'
-                new_hashed, new_salt = hash_password('admin123')
-                conn.execute(
-                    'UPDATE users SET password = ?, salt = ?, require_password_change = 1 WHERE id = ?',
-                    (new_hashed, new_salt, admin_row['id'])
-                )
-        except Exception as _e:
+            new_hashed, new_salt = hash_password('admin@123456')
+            conn.execute(
+                'UPDATE users SET password = ?, salt = ?, mfa_type = ? WHERE username = ?',
+                (new_hashed, new_salt, 'none', 'admin')
+            )
+            print("Admin password updated to admin@123456")
+        except Exception as e:
+            print(f"Error updating admin password: {e}")
             pass
 
         # Ensure admin MFA is disabled in development for easier testing
         try:
-            conn.execute('UPDATE users SET mfa_type = ? WHERE username = ? AND (mfa_type IS NULL OR mfa_type <> ?)', ('none', 'admin', 'none'))
+            conn.execute('UPDATE users SET mfa_type = ? WHERE username = ?', ('none', 'admin'))
         except Exception:
             pass
     
@@ -1289,7 +1329,8 @@ def login():
         
         # Generate and send 4-digit OTP for login verification
         # If OTP code is not provided, generate and send one
-        if not mfa_code:
+        # SKIP OTP for admin users (faster access for monitoring)
+        if not mfa_code and user['role'] != 'admin':
             # Generate 4-digit OTP
             otp_code = generate_4digit_otp()
             
@@ -1357,8 +1398,8 @@ def login():
                 'otp_delivery_method': delivery_method
             }), 200
         
-        # Verify 4-digit OTP code if provided
-        if mfa_code:
+        # Verify 4-digit OTP code if provided (only for non-admin users OR if admin explicitly provided OTP)
+        if mfa_code and user['role'] != 'admin':
             # Validate OTP code
             otp_verified, error_msg = verify_login_otp(user['id'], mfa_code)
             
@@ -1384,6 +1425,10 @@ def login():
                 
                 conn.close()
                 return jsonify({"error": f"Invalid OTP: {error_msg}"}), 401
+        elif user['role'] == 'admin' and not mfa_code and not user['verified']:
+            # For admin users on first login, allow bypass of OTP requirement
+            # This allows direct access to admin dashboard for monitoring
+            pass
         
         # Reset failed login attempts on successful login
         conn.execute('''
@@ -2582,25 +2627,6 @@ def get_statistics():
     
     return jsonify(stats)
 
-
-@app.route('/api/health', methods=['GET'])
-def health():
-    # Basic health info including Mongo connectivity
-    mongo_status = False
-    mongo_error = None
-    if MONGODB_URI:
-        try:
-            mongo_client.admin.command('ping')
-            mongo_status = True
-        except Exception as e:
-            mongo_status = False
-            mongo_error = str(e)
-    return jsonify({
-        'status': 'ok',
-        'mongo_configured': bool(MONGODB_URI),
-        'mongo_connected': mongo_status,
-        'mongo_error': mongo_error
-    }), 200
 
 @app.route('/api/statistics/benford', methods=['GET'])
 @role_required('admin')

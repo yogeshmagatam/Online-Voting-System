@@ -89,6 +89,7 @@ function CandidateRegister({ onNavigateToLogin, onNavigateToVoter }) {
 
     if (!captcha || captcha.trim().toUpperCase() !== captchaText.toUpperCase()) {
       setError('Incorrect captcha');
+      setCaptcha('');
       generateCaptcha();
       return;
     }
@@ -215,7 +216,14 @@ function CandidateRegister({ onNavigateToLogin, onNavigateToVoter }) {
               <label htmlFor="photo">Photo</label>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                 <button type="button" className={`btn ${usingCamera ? 'btn-primary' : 'btn-secondary'}`} onClick={async () => { setUsingCamera(true); await startCamera(); }}>Use Camera</button>
-                <button type="button" className={`btn ${!usingCamera ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setUsingCamera(false); stopCamera(); }}>Upload Photo</button>
+                <button type="button" className={`btn ${!usingCamera ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { 
+                  if (!usingCamera) {
+                    document.getElementById('photoFileInput').click();
+                  } else {
+                    setUsingCamera(false); 
+                    stopCamera(); 
+                  }
+                }}>Upload Photo</button>
               </div>
               {usingCamera ? (
                 <div>
@@ -229,7 +237,9 @@ function CandidateRegister({ onNavigateToLogin, onNavigateToVoter }) {
                   </div>
                 </div>
               ) : (
-                <input type="file" className="form-control" id="photo" accept="image/*" onChange={onSelectPhoto} />
+                <>
+                  <input type="file" id="photoFileInput" accept="image/*" onChange={onSelectPhoto} style={{ display: 'none' }} />
+                </>
               )}
               {photoDataUrl && (
                 <div style={{ marginTop: 8 }}>

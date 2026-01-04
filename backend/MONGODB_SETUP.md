@@ -38,6 +38,11 @@ docker run -d --name mongo -p 27017:27017 -v mongo_data:/data/db mongo:7
 
 You'll see `MongoDB connected: db='election_db'` if the connection succeeds.
 
+If you see `mongo_configured: false`, set `MONGODB_URI`.
+If `mongo_connected: false` with `querySrv ENOTFOUND`, either:
+- Switch to a standard connection string (non-SRV) from Atlas driver page, or
+- Use local MongoDB: `MONGODB_URI = "mongodb://localhost:27017"`.
+
 ## 4) Verify
 
 Open in browser or with curl:

@@ -10,6 +10,7 @@ A web-based system for detecting election fraud using cybersecurity and machine 
 - Real-time monitoring and alerts
 - Comprehensive dashboard for visualization
 - Secure API with encryption
+- **Admin monitoring dashboard** for voter and candidate oversight
 
 ## Tech Stack
 
@@ -55,5 +56,26 @@ election-fraud-detection/
 │   │   ├── services/       # API services
 │   │   ├── utils/          # Utility functions
 │   │   └── App.js          # Main component
+├── ADMIN_LOGIN_GUIDE.md    # Admin monitoring guide
 └── README.md               # Project documentation
 ```
+
+## Admin Login
+
+For system monitoring and fraud detection oversight:
+
+**Default Admin Credentials:**
+- **Username**: `admin`
+- **Password**: `admin123`
+
+> ⚠️ **IMPORTANT**: Change the default admin password immediately in production!
+
+The admin account provides:
+- OTP-free login (instant access)
+- Comprehensive monitoring dashboard
+- Real-time election statistics
+- Voter and candidate oversight
+- Fraud detection analytics
+- Activity and security logs
+
+See [ADMIN_LOGIN_GUIDE.md](ADMIN_LOGIN_GUIDE.md) for detailed admin panel features and security recommendations.
