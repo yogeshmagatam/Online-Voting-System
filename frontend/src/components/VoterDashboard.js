@@ -47,12 +47,7 @@ function VoterDashboard({ token, onLogout }) {
 
       if (response.ok) {
         const data = await response.json();
-        // Extract unique candidates from the data
-        const candidateList = data.map(d => ({
-          id: d.id,
-          name: `Candidate ${String.fromCharCode(65 + (d.id % 2))}`
-        }));
-        setCandidates([...new Map(candidateList.map(c => [c.id, c])).values()]);
+        setCandidates(data.candidates || []);
       }
     } catch (err) {
       console.error('Error fetching candidates:', err);
@@ -69,8 +64,7 @@ function VoterDashboard({ token, onLogout }) {
 
       if (response.ok) {
         const data = await response.json();
-        const precinctList = data.map(d => d.precinct);
-        setPrecincts([...new Set(precinctList)]);
+        setPrecincts(data.precincts || []);
       }
     } catch (err) {
       console.error('Error fetching precincts:', err);
@@ -205,8 +199,9 @@ function VoterDashboard({ token, onLogout }) {
                     required
                   >
                     <option value="">-- Select a Candidate --</option>
-                    <option value="candidate_a">Candidate A</option>
-                    <option value="candidate_b">Candidate B</option>
+                    {candidates.map((c, idx) => (
+                      <option key={idx} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
