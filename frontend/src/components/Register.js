@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import SiteLayout from './layout/SiteLayout';
 
-function Register({ onNavigateToLogin, onNavigateToCandidate }) {
+function Register({ onNavigateToLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -172,38 +172,6 @@ function Register({ onNavigateToLogin, onNavigateToCandidate }) {
   return (
     <SiteLayout onLoginClick={onNavigateToLogin} onRegisterClick={() => {}} isLoggedIn={false}>
       <div className="eci-content">
-        <div 
-          className="eci-card" 
-          style={{ 
-            marginBottom: 16, 
-            padding: 20, 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-            color: 'white', 
-            textAlign: 'center',
-            border: 'none',
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-          }}
-        >
-          <h3 style={{ margin: 0, marginBottom: 8, fontSize: '1.4rem' }}>Running for Office?</h3>
-          <p style={{ margin: 0, marginBottom: 16, opacity: 0.95, fontSize: '1rem' }}>
-            Register as a candidate to participate in the election
-          </p>
-          <button 
-            className="btn" 
-            style={{ 
-              background: 'white', 
-              color: '#764ba2', 
-              border: 'none', 
-              fontWeight: 'bold',
-              padding: '10px 24px',
-              fontSize: '1rem',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-            }} 
-            onClick={onNavigateToCandidate || (() => {})}
-          >
-            Register as Candidate →
-          </button>
-        </div>
         <div className="eci-card">
           <h2 style={{ marginTop: 0 }}>Register as Voter</h2>
           {error && <div className="alert alert-danger">{error}</div>}

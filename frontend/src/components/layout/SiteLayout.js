@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function SiteLayout({ children, onLoginClick, onRegisterClick, onLogout, isLoggedIn }) {
+export default function SiteLayout({ children, onLoginClick, onRegisterClick, onLogout, onNavigateToHome, isLoggedIn, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility }) {
   return (
     <div className="eci-page">
       <header className="eci-header">
@@ -11,8 +11,8 @@ export default function SiteLayout({ children, onLoginClick, onRegisterClick, on
               <button className="eci-link" onClick={onLogout}>Logout</button>
             ) : (
               <>
-                <button className="eci-link" onClick={onLoginClick}>Login</button>
-                <button className="eci-link" onClick={onRegisterClick}>Register</button>
+                <button className="eci-link eci-link-animated" onClick={onLoginClick}>Login</button>
+                <button className="eci-link eci-link-animated" onClick={onRegisterClick}>Register</button>
               </>
             )}
           </div>
@@ -25,16 +25,10 @@ export default function SiteLayout({ children, onLoginClick, onRegisterClick, on
             <h1>Secure Election Portal</h1>
             <p>Transparent • Accessible • Secure</p>
           </div>
-          <div className="eci-search">
-            <input type="search" placeholder="Search..." aria-label="Search" />
-          </div>
         </div>
         <nav className="eci-nav" aria-label="primary">
           <ul>
-            <li><a href="#services">Services</a></li>
-            <li><a href="#voter">Voter Info</a></li>
-            <li><a href="#results">Results</a></li>
-            <li><a href="#resources">Resources</a></li>
+            <li><a href="#services" className="eci-nav-link">Services</a></li>
             <li><a href="#contact">Contact</a></li>
           </ul>
         </nav>
@@ -49,24 +43,24 @@ export default function SiteLayout({ children, onLoginClick, onRegisterClick, on
           <div>
             <h4>About</h4>
             <ul>
-              <li><a href="#learn">Our mission</a></li>
-              <li><a href="#security">Security</a></li>
-              <li><a href="#privacy">Privacy</a></li>
+              <li><button className="eci-link" onClick={onNavigateToMission} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>Our mission</button></li>
+              <li><button className="eci-link" onClick={onNavigateToSecurity} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>Security</button></li>
+              <li><button className="eci-link" onClick={onNavigateToPrivacy} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>Privacy</button></li>
             </ul>
           </div>
           <div>
             <h4>Help</h4>
             <ul>
-              <li><a href="#faq">FAQ</a></li>
-              <li><a href="#support">Support</a></li>
-              <li><a href="#accessibility">Accessibility</a></li>
+              <li><button className="eci-link" onClick={onNavigateToFAQ} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>FAQ</button></li>
+              <li><button className="eci-link" onClick={onNavigateToSupport} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>Support</button></li>
+              <li><button className="eci-link" onClick={onNavigateToAccessibility} style={{background: 'none', border: 'none', padding: 0, color: '#c7d2e2', cursor: 'pointer', textDecoration: 'none'}}>Accessibility</button></li>
             </ul>
           </div>
           <div>
             <h4>Contact</h4>
             <ul>
-              <li>Email: support@example.com</li>
-              <li>Phone: +1-555-123-4567</li>
+              <li>Email: akashgupta1641@gmail.com</li>
+              <li>Phone: +91 8685497320</li>
             </ul>
           </div>
         </div>

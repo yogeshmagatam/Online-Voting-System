@@ -12,6 +12,13 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
   const [verificationDetails, setVerificationDetails] = useState(null);
   const [useFileUpload, setUseFileUpload] = useState(false);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   // Start camera
   const startCamera = async () => {
     try {
@@ -29,11 +36,32 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Ensure video plays
+        videoRef.current.play().catch(err => {
+          console.error('Video play error:', err);
+        });
         setCameraActive(true);
       }
     } catch (err) {
       console.error('Camera error:', err);
-      setCameraError('Unable to access camera. Please check browser permissions or use the upload option.');
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      
+      let errorMessage = 'Unable to access camera. Please check browser permissions or use the upload option.';
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Camera access denied. Please allow camera permissions in your browser settings.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'No camera device found. Please connect a camera or use the upload option.';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Camera is in use by another application (Zoom, Teams, etc.). Please close those apps and try again.';
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage = 'Camera does not support the requested video resolution. Please try a different camera or use upload.';
+      } else if (err.name === 'TypeError') {
+        errorMessage = 'Camera access is not available. Please ensure you\'re using a secure (HTTPS) connection or localhost.';
+      }
+      
+      setCameraError(errorMessage);
       setUseFileUpload(true);
     }
   };
@@ -289,6 +317,7 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
                 <video
                   ref={videoRef}
                   autoPlay
+                  muted
                   playsInline
                   style={styles.video}
                 />
