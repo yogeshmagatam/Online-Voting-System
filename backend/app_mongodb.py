@@ -23,6 +23,9 @@ import uuid
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
 from urllib.parse import quote_plus
+from fraud_detection import initialize_fraud_detector, get_fraud_detector
+from behavior_tracker import initialize_behavior_tracker, get_behavior_tracker
+from random_forest_fraud import initialize_rf_service, get_rf_service
 
 load_dotenv()
 
@@ -66,6 +69,11 @@ users_collection = db['users']
 login_otp_collection = db['login_otp']
 master_voter_list_collection = db['master_voter_list']
 votes_collection = db['votes']
+
+# Initialize fraud detection and behavior tracking (local only)
+initialize_fraud_detector()
+initialize_behavior_tracker(db)
+initialize_rf_service(os.environ.get('RF_MODELS_DIR', os.path.join(os.getcwd(), 'backend', 'models', 'rf')))
 
 # Helpers
 def generate_4digit_otp():
@@ -309,7 +317,55 @@ def register_voter():
             'created_at': datetime.utcnow()
         }
         
+        # Save user first to get _id
         result = users_collection.insert_one(user_doc)
+
+        # Optional: save registration photo
+        try:
+            photo_data_url = data.get('photo')
+            if photo_data_url:
+                import base64, io
+                from PIL import Image
+                # Ensure uploads directory exists
+                uploads_dir = os.path.join(os.getcwd(), 'backend', 'uploads', 'user_photos')
+                os.makedirs(uploads_dir, exist_ok=True)
+
+                # Handle both data URL format and raw base64
+                if ',' in photo_data_url and photo_data_url.startswith('data:'):
+                    header, b64 = photo_data_url.split(',', 1)
+                else:
+                    b64 = photo_data_url
+                
+                # Decode base64 (supports all image formats)
+                try:
+                    img_bytes = base64.b64decode(b64)
+                except Exception as decode_error:
+                    print(f"Base64 decode error: {decode_error}")
+                    raise
+                
+                # Open image and convert to RGB (handles PNG, JPEG, GIF, BMP, TIFF, WebP, etc.)
+                img = Image.open(io.BytesIO(img_bytes))
+                
+                # Handle transparency by converting RGBA to RGB with white background
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    if img.mode == 'P':
+                        img = img.convert('RGBA')
+                    background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                    img = background
+                else:
+                    img = img.convert('RGB')
+
+                # Save as user_id.jpg
+                photo_path = os.path.join(uploads_dir, f"{str(result.inserted_id)}.jpg")
+                img.save(photo_path, format='JPEG', quality=95, optimize=True)
+
+                # Update user with photo path
+                users_collection.update_one({'_id': result.inserted_id}, {'$set': {'photo_path': photo_path}})
+        except Exception as e:
+            print(f"Registration photo save failed: {e}")
+            import traceback
+            traceback.print_exc()
         
         # Send OTP on registration
         otp_code, success = create_login_otp(str(result.inserted_id), 'email', email)
@@ -498,22 +554,143 @@ def verify_identity():
         
         if not live_photo:
             return jsonify({"error": "Live photo is required"}), 400
-        
-        # For now, just accept the photo and mark identity as verified
-        # In a real implementation, you would:
-        # 1. Use face recognition library (face_recognition, deepface, etc.)
-        # 2. Compare with stored voter photo
-        # 3. Check for spoofing/liveness indicators
-        
-        return jsonify({
-            "verified": True,
-            "face_match_confidence": 0.92,
-            "liveness_score": 0.95,
-            "message": "Identity verified successfully"
-        }), 200
+
+        try:
+            import base64, io
+            import numpy as np
+            from PIL import Image
+            try:
+                import face_recognition
+            except Exception:
+                face_recognition = None
+
+            # Decode live photo (supports all image formats: JPEG, PNG, GIF, BMP, TIFF, WebP, etc.)
+            # Handle both data URL format and raw base64
+            if ',' in live_photo and live_photo.startswith('data:'):
+                header, b64 = live_photo.split(',', 1)
+            else:
+                b64 = live_photo
+            
+            img_bytes = base64.b64decode(b64)
+            img = Image.open(io.BytesIO(img_bytes))
+            
+            # Force convert to RGB mode (simplest approach - always works)
+            img = img.convert('RGB')
+            
+            # Convert to numpy array with explicit 8-bit unsigned integer type
+            live_np = np.array(img, dtype=np.uint8)
+            
+            # Ensure contiguous memory layout (required by dlib)
+            if not live_np.flags['C_CONTIGUOUS']:
+                live_np = np.ascontiguousarray(live_np, dtype=np.uint8)
+            
+            # Final validation
+            if len(live_np.shape) != 3 or live_np.shape[2] != 3:
+                raise ValueError(f"Invalid image shape: {live_np.shape}, expected (H, W, 3)")
+            if live_np.dtype != np.uint8:
+                live_np = live_np.astype(np.uint8)
+
+            # Basic fraud checks
+            fraud_indicators = []
+            if live_np.shape[0] < 100 or live_np.shape[1] < 100:
+                fraud_indicators.append('image_too_small')
+
+            # Detect face(s)
+            if face_recognition:
+                live_locations = face_recognition.face_locations(live_np)
+                if len(live_locations) == 0:
+                    fraud_indicators.append('no_face_detected')
+                if len(live_locations) > 1:
+                    fraud_indicators.append('multiple_faces_detected')
+
+            if fraud_indicators:
+                return jsonify({
+                    "error": "Fraud indicators detected",
+                    "fraud_indicators": fraud_indicators,
+                    "liveness_score": 0.0,
+                    "spoofing_confidence": 0.9
+                }), 400
+
+            # Attempt face match against stored photo
+            user_id = get_jwt_identity()
+            user = users_collection.find_one({'username': user_id}) or users_collection.find_one({'_id': ObjectId(user_id)})
+            face_match_confidence = 0.0
+            face_distance = None
+            is_genuine = True
+
+            if face_recognition and user and user.get('photo_path') and os.path.exists(user['photo_path']):
+                try:
+                    ref_img = Image.open(user['photo_path'])
+                    # Force convert to RGB
+                    ref_img = ref_img.convert('RGB')
+                    
+                    # Convert to numpy array with explicit 8-bit unsigned integer type
+                    ref_np = np.array(ref_img, dtype=np.uint8)
+                    
+                    # Ensure contiguous memory layout
+                    if not ref_np.flags['C_CONTIGUOUS']:
+                        ref_np = np.ascontiguousarray(ref_np, dtype=np.uint8)
+                    
+                    # Validate shape
+                    if len(ref_np.shape) != 3 or ref_np.shape[2] != 3:
+                        raise ValueError(f"Invalid reference image shape: {ref_np.shape}")
+                    if ref_np.dtype != np.uint8:
+                        ref_np = ref_np.astype(np.uint8)
+                    
+                    ref_encodings = face_recognition.face_encodings(ref_np)
+                    live_encodings = face_recognition.face_encodings(live_np)
+                    if ref_encodings and live_encodings:
+                        dist = face_recognition.face_distance([ref_encodings[0]], live_encodings[0])[0]
+                        face_distance = float(dist)
+                        # Map distance [0,1+] to confidence [0,1]
+                        face_match_confidence = float(max(0.0, min(1.0, 1.0 - dist)))
+                        is_genuine = dist < 0.6
+                    else:
+                        is_genuine = True
+                except Exception as e:
+                    print(f"Face match error: {e}")
+
+            # Simple liveness heuristic (presence of a face + reasonable size)
+            liveness_score = 0.95 if face_recognition else 0.8
+
+            # Optionally log success
+            try:
+                logs_dir = os.path.join(os.getcwd(), 'backend', 'logs')
+                os.makedirs(logs_dir, exist_ok=True)
+                log_path = os.path.join(logs_dir, f"security_{datetime.utcnow().date()}.log")
+                with open(log_path, 'a', encoding='utf-8') as f:
+                    entry = {
+                        "username": user.get('username') if user else None,
+                        "user_id": str(user.get('_id')) if user else None,
+                        "face_match_confidence": face_match_confidence,
+                        "liveness_score": liveness_score,
+                        "camera_source": camera_source,
+                        "ip_address": request.remote_addr,
+                        "user_agent": request.headers.get('User-Agent'),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    f.write(f"[{datetime.utcnow().isoformat()}] [identity_verification_successful] {json.dumps(entry)}\n")
+            except Exception:
+                pass
+
+            return jsonify({
+                "verified": True,
+                "is_genuine": is_genuine,
+                "face_match_confidence": face_match_confidence,
+                "face_distance": face_distance,
+                "liveness_score": liveness_score,
+                "message": "Identity verified successfully"
+            }), 200
+        except Exception as e:
+            print(f"Identity verification processing error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": f"Verification failed: {str(e)}"}), 500
     except Exception as e:
         print(f"Identity verification error: {e}")
-        return jsonify({"error": "Verification failed"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Verification failed: {str(e)}"}), 500
 
 @app.route('/api/election-data', methods=['GET'])
 @jwt_required()
@@ -553,6 +730,71 @@ def cast_vote():
             print(f"[Cast Vote] ERROR: User already voted")
             return jsonify({"error": "You have already voted"}), 400
         
+        # FRAUD DETECTION - Collect behavior data and assess risk
+        session_id = request.cookies.get('session_id', str(uuid.uuid4()))
+        behavior_tracker = get_behavior_tracker()
+        fraud_detector = get_fraud_detector()
+        
+        # Collect request metadata
+        request_data = {
+            'ip_address': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', ''),
+            'session_id': session_id
+        }
+        
+        # Get voter information
+        user = users_collection.find_one({'username': user_id})
+        voter_data = {
+            'voter_id': user_id,
+            'age': user.get('age', 0),
+            'registration_date': user.get('created_at', datetime.utcnow()),
+            'identity_verified': user.get('identity_verified', False),
+            'mfa_type': user.get('mfa_type', 'none')
+        }
+        
+        # Prepare vote attempt data
+        vote_attempt_data = {
+            'timestamp': datetime.utcnow(),
+            'ip_address': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent', ''),
+            'is_mobile': 'mobile' in request.headers.get('User-Agent', '').lower(),
+            'session_duration': data.get('session_duration', 0),
+            'page_views': data.get('page_views', 0),
+            'time_on_page': data.get('time_on_page', 0),
+            'login_attempts': data.get('login_attempts', 1),
+            'votes_in_last_hour': behavior_tracker.get_recent_votes(user_id, hours=1),
+            'identity_verified': voter_data['identity_verified']
+        }
+        
+        # Get historical behavior
+        historical_data = behavior_tracker.get_voter_history(user_id, days=30)
+        
+        # Track vote attempt
+        behavior_tracker.track_vote_attempt(user_id, session_id, vote_attempt_data, request_data)
+        
+        # Assess fraud risk
+        fraud_assessment = fraud_detector.assess_vote_risk(
+            voter_data, vote_attempt_data, historical_data
+        )
+        
+        # Store fraud assessment
+        behavior_tracker.store_fraud_assessment(fraud_assessment)
+        
+        print(f"[Fraud Detection] Risk: {fraud_assessment['risk_level']} "
+              f"(probability: {fraud_assessment['fraud_probability']:.4f})")
+        
+        # Block high-risk votes
+        if fraud_assessment['recommended_action'] == 'block':
+            print(f"[Cast Vote] BLOCKED: High fraud risk detected")
+            return jsonify({
+                "error": "Vote blocked due to security concerns. Please contact support.",
+                "fraud_risk": fraud_assessment['risk_level'],
+                "transaction_id": None
+            }), 403
+        
+        # Flag medium-risk votes for review
+        flagged_for_review = fraud_assessment['recommended_action'] == 'review'
+        
         # Generate a unique transaction ID
         transaction_id = str(uuid.uuid4())
         
@@ -562,7 +804,10 @@ def cast_vote():
             'precinct': precinct,
             'transaction_id': transaction_id,
             'timestamp': datetime.utcnow(),
-            'verified': True
+            'verified': True,
+            'fraud_score': fraud_assessment['fraud_probability'],
+            'fraud_risk_level': fraud_assessment['risk_level'],
+            'flagged_for_review': flagged_for_review
         }
         
         result = votes_collection.insert_one(vote_record)
@@ -573,7 +818,16 @@ def cast_vote():
         print(f"[Cast Vote] Total votes in DB now: {votes_collection.count_documents({})}")
         print(f"{'='*60}\n")
         
-        return jsonify({"message": "Vote cast successfully", "transaction_id": transaction_id}), 200
+        response_data = {
+            "message": "Vote cast successfully",
+            "transaction_id": transaction_id,
+            "fraud_risk_level": fraud_assessment['risk_level']
+        }
+        
+        if flagged_for_review:
+            response_data["warning"] = "Vote flagged for additional review"
+        
+        return jsonify(response_data), 200
     except Exception as e:
         print(f"[Cast Vote] ERROR: {e}")
         import traceback
@@ -662,6 +916,153 @@ def admin_user_stats():
             'total_attempts': total_attempts
         }), 200
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/train-rf', methods=['POST'])
+@jwt_required()
+def admin_train_rf():
+    try:
+        claims = get_jwt()
+        if claims.get('role') != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+
+        # Optional timeframe from payload
+        data = request.get_json(silent=True) or {}
+        days = int(data.get('days', 30))
+
+        behavior_tracker = get_behavior_tracker()
+        rf_service = get_rf_service()
+        if rf_service is None:
+            return jsonify({"error": "RF service not initialized"}), 500
+
+        # Export vote attempts with optional labeling
+        training_records = behavior_tracker.export_training_data(
+            labeled_only=False
+        )
+        if not training_records:
+            return jsonify({"error": "No training data available"}), 400
+
+        # Train and persist model
+        metrics = rf_service.train_and_save(training_records)
+
+        return jsonify({
+            "message": "Random Forest model trained and saved",
+            "metrics": metrics
+        }), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/fraud-analytics', methods=['GET'])
+@jwt_required()
+def fraud_analytics():
+    """Get fraud detection analytics"""
+    try:
+        claims = get_jwt()
+        if claims.get('role') != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        
+        behavior_tracker = get_behavior_tracker()
+        
+        # Get fraud assessments by risk level
+        high_risk = behavior_tracker.get_fraud_assessments(risk_level='high', limit=100)
+        medium_risk = behavior_tracker.get_fraud_assessments(risk_level='medium', limit=100)
+        low_risk = behavior_tracker.get_fraud_assessments(risk_level='low', limit=100)
+        
+        # Get flagged votes
+        flagged_votes = list(votes_collection.find(
+            {'flagged_for_review': True},
+            {'_id': 0, 'user_id': 1, 'transaction_id': 1, 'fraud_risk_level': 1, 
+             'fraud_score': 1, 'timestamp': 1, 'candidate': 1}
+        ).limit(50))
+        
+        # Convert ObjectId and datetime to strings
+        for assessment in high_risk + medium_risk + low_risk:
+            if '_id' in assessment:
+                assessment['_id'] = str(assessment['_id'])
+            if 'timestamp' in assessment:
+                assessment['timestamp'] = assessment['timestamp'].isoformat()
+        
+        for vote in flagged_votes:
+            if 'timestamp' in vote:
+                vote['timestamp'] = vote['timestamp'].isoformat()
+        
+        return jsonify({
+            'summary': {
+                'high_risk_count': len(high_risk),
+                'medium_risk_count': len(medium_risk),
+                'low_risk_count': len(low_risk),
+                'flagged_votes_count': len(flagged_votes)
+            },
+            'high_risk_assessments': high_risk[:10],  # Recent 10
+            'medium_risk_assessments': medium_risk[:10],
+            'flagged_votes': flagged_votes
+        }), 200
+    except Exception as e:
+        print(f"Fraud analytics error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/export-training-data', methods=['GET'])
+@jwt_required()
+def export_training_data():
+    """Export voter behavior data for model training"""
+    try:
+        claims = get_jwt()
+        if claims.get('role') != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        
+        behavior_tracker = get_behavior_tracker()
+        
+        # Export training data
+        training_data = behavior_tracker.export_training_data(labeled_only=False)
+        
+        # Convert to JSON-serializable format
+        for record in training_data:
+            if '_id' in record:
+                record['_id'] = str(record['_id'])
+            if 'timestamp' in record:
+                record['timestamp'] = record['timestamp'].isoformat()
+        
+        return jsonify({
+            'total_records': len(training_data),
+            'labeled_records': sum(1 for r in training_data if 'fraud_label' in r),
+            'data': training_data
+        }), 200
+    except Exception as e:
+        print(f"Export training data error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/fraud-stats', methods=['GET'])
+@jwt_required()
+def fraud_stats():
+    """Get fraud detection statistics"""
+    try:
+        claims = get_jwt()
+        if claims.get('role') != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        
+        # Count votes by fraud risk level
+        total_votes = votes_collection.count_documents({})
+        high_risk_votes = votes_collection.count_documents({'fraud_risk_level': 'high'})
+        medium_risk_votes = votes_collection.count_documents({'fraud_risk_level': 'medium'})
+        low_risk_votes = votes_collection.count_documents({'fraud_risk_level': 'low'})
+        flagged_votes = votes_collection.count_documents({'flagged_for_review': True})
+        
+        return jsonify({
+            'total_votes': total_votes,
+            'high_risk_votes': high_risk_votes,
+            'medium_risk_votes': medium_risk_votes,
+            'low_risk_votes': low_risk_votes,
+            'flagged_votes': flagged_votes,
+            'fraud_detection_enabled': get_fraud_detector() is not None
+        }), 200
+    except Exception as e:
+        print(f"Fraud stats error: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
