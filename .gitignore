@@ -1,5 +1,6 @@
 .venv
 .venv*/
+.venv311/
 venv/
 frontend/node_modules/*
 *.log
@@ -10,4 +11,3 @@ __pycache__/
 .vscode/
 *pkl
 ../__pycache__/
-.venv311/
