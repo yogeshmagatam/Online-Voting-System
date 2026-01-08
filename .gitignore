@@ -1,4 +1,6 @@
 .venv
+.venv*/
+venv/
 frontend/node_modules/*
 *.log
 .DS_Store
@@ -8,3 +10,4 @@ __pycache__/
 .vscode/
 *pkl
 ../__pycache__/
+.venv311/
