@@ -8,6 +8,7 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
   const [otpCode, setOtpCode] = useState('');
   const [otpRequired, setOtpRequired] = useState(false);
   const [otpDeliveryMethod, setOtpDeliveryMethod] = useState('');
+  const [userId, setUserId] = useState(''); // Store user_id for OTP verification
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -43,19 +44,25 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
           throw new Error(data.error || 'Login failed');
         }
 
-        // Check if OTP is required
-        if (data.otp_required) {
+        // Check if MFA is required (backend returns mfa_required, not otp_required)
+        if (data.mfa_required) {
           setOtpRequired(true);
-          setOtpDeliveryMethod(data.otp_delivery_method);
+          setUserId(data.user_id); // Store user_id for OTP verification
+          setOtpDeliveryMethod(data.mfa_type);
           setOtpCode('');
           setError('');
           setIsLoading(false);
           return;
         }
 
-        // This shouldn't happen with the new OTP system, but handle it just in case
+        // Direct login for admin (no MFA required)
+        if (data.access_token && data.role) {
+          onLogin(data.access_token, data.role);
+          return;
+        }
+
         setIsLoading(false);
-        throw new Error('OTP generation failed');
+        throw new Error('Login failed - no token received');
 
       } else {
         // Step 2: Verify the 4-digit OTP
@@ -74,14 +81,14 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
           throw new Error('OTP must be exactly 4 digits (0-9 only)');
         }
 
-        const response = await fetch('http://localhost:5000/api/verify-login-otp', {
+        const response = await fetch('http://localhost:5000/api/verify-otp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ 
-            username, 
-            otp_code: otpCode
+            user_id: userId,
+            otp: otpCode
           }),
         });
         

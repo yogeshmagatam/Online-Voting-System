@@ -18,8 +18,8 @@ if %errorLevel% neq 0 (
 echo Enter your Gmail configuration:
 echo.
 
-set /p MAIL_USERNAME="Gmail Address (example@gmail.com): "
-set /p MAIL_PASSWORD="App Password (16-character from Google Account): "
+set /p MAIL_USERNAME=Gmail Address: 
+set /p MAIL_PASSWORD=App Password from Google: 
 
 echo.
 echo Configuring environment variables...

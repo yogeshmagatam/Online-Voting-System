@@ -43,7 +43,14 @@ function Dashboard({ token, userRole, onLogout }) {
       }
       
       const dataResult = await dataResponse.json();
-      setElectionData(dataResult);
+      // Handle both array and object responses
+      if (Array.isArray(dataResult)) {
+        setElectionData(dataResult);
+      } else if (dataResult.data && Array.isArray(dataResult.data)) {
+        setElectionData(dataResult.data);
+      } else {
+        setElectionData([]);
+      }
       
       // Fetch statistics
       const statsResponse = await fetch('http://localhost:5000/api/statistics', {
@@ -238,18 +245,6 @@ function Dashboard({ token, userRole, onLogout }) {
           <div className="eci-card">
             <h2>Add Election Data</h2>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="precinct">Precinct Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  id="precinct"
-                  name="precinct"
-                  value={formData.precinct}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
               <div className="form-group">
                 <label htmlFor="votes_candidate_a">Votes for Candidate A</label>
                 <input

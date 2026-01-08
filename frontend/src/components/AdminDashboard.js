@@ -30,7 +30,6 @@ function AdminDashboard({ token, onLogout }) {
     timestamp: new Date().toISOString()
   });
   const [user, setUser] = useState(null);
-  const [benfordAnalysis, setBenfordAnalysis] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [activityLogs, setActivityLogs] = useState([]);
   const [securityLogs, setSecurityLogs] = useState([]);
@@ -100,7 +99,10 @@ function AdminDashboard({ token, onLogout }) {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('[Admin Dashboard] User stats received:', data);
         setStatistics(prev => ({ ...prev, ...data }));
+      } else {
+        console.error('[Admin Dashboard] Failed to fetch user stats:', response.status);
       }
     } catch (err) {
       console.error('Error fetching user stats:', err);
@@ -137,7 +139,14 @@ function AdminDashboard({ token, onLogout }) {
       }
 
       const dataResult = await dataResponse.json();
-      setElectionData(dataResult);
+      // Handle both array and object responses
+      if (Array.isArray(dataResult)) {
+        setElectionData(dataResult);
+      } else if (dataResult.data && Array.isArray(dataResult.data)) {
+        setElectionData(dataResult.data);
+      } else {
+        setElectionData([]);
+      }
 
       const statsResponse = await fetch('http://localhost:5000/api/statistics', {
         headers: {
@@ -150,7 +159,7 @@ function AdminDashboard({ token, onLogout }) {
       }
 
       const statsResult = await statsResponse.json();
-      setStatistics(statsResult);
+      setStatistics(prev => ({ ...prev, ...statsResult }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -232,27 +241,10 @@ function AdminDashboard({ token, onLogout }) {
     }
   };
 
-  const runBenfordAnalysis = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/statistics/benford', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to run Benford analysis');
-      }
-
-      const result = await response.json();
-      setBenfordAnalysis(result);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   const votesChartData = {
-    labels: ['Candidate A', 'Candidate B'],
+    labels: ['Narendra Modi ji', 'Rahul Gandhi ji'],
     datasets: [
       {
         label: 'Votes',
@@ -276,8 +268,8 @@ function AdminDashboard({ token, onLogout }) {
       {
         label: 'Precincts',
         data: [
-          statistics.total_precincts - statistics.suspicious_precincts,
-          statistics.suspicious_precincts
+          (statistics.total_precincts || 3) - (statistics.suspicious_precincts || 0),
+          statistics.suspicious_precincts || 0
         ],
         backgroundColor: [
           'rgba(75, 192, 192, 0.6)',
@@ -291,6 +283,28 @@ function AdminDashboard({ token, onLogout }) {
       },
     ],
   };
+
+  // Election outcome summary
+  const candidateAVotes = statistics.candidate_a_votes || 0;
+  const candidateBVotes = statistics.candidate_b_votes || 0;
+  const totalCandidateVotes = candidateAVotes + candidateBVotes;
+  let winnerLabel = 'Tie';
+  let winnerVotes = candidateAVotes;
+  let marginVotes = 0;
+
+  if (candidateAVotes > candidateBVotes) {
+    winnerLabel = 'Narendra Modi ji';
+    winnerVotes = candidateAVotes;
+    marginVotes = candidateAVotes - candidateBVotes;
+  } else if (candidateBVotes > candidateAVotes) {
+    winnerLabel = 'Rahul Gandhi ji';
+    winnerVotes = candidateBVotes;
+    marginVotes = candidateBVotes - candidateAVotes;
+  }
+
+  const marginPercent = totalCandidateVotes > 0
+    ? ((marginVotes / totalCandidateVotes) * 100).toFixed(2)
+    : '0.00';
 
   return (
     <SiteLayout isLoggedIn={true} onLogout={onLogout}>
@@ -338,33 +352,24 @@ function AdminDashboard({ token, onLogout }) {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>
-            {/* Key Statistics */}
+            {/* Election Outcome */}
             <div className="eci-card">
-              <h2>System Overview</h2>
-              <div className="stats-container">
-                <div className="stat-card">
-                  <h3>👥 Total Voters</h3>
-                  <div className="stat-value">{statistics.total_voters || 0}</div>
+              <h2>🏁 Election Outcome</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                <div className="stat-card" style={{ flex: '1 1 240px', background: '#fff7ec' }}>
+                  <h3>Leading</h3>
+                  <div className="stat-value">{winnerLabel}</div>
+                  <div style={{ color: '#666', marginTop: '4px' }}>Votes: {winnerVotes}</div>
                 </div>
-                <div className="stat-card">
-                  <h3>🎤 Total Candidates</h3>
-                  <div className="stat-value">{statistics.total_candidates || 0}</div>
+                <div className="stat-card" style={{ flex: '1 1 240px', background: '#f0f7ff' }}>
+                  <h3>Margin</h3>
+                  <div className="stat-value">{marginVotes}</div>
+                  <div style={{ color: '#666', marginTop: '4px' }}>({marginPercent}% of counted votes)</div>
                 </div>
-                <div className="stat-card">
-                  <h3>✅ Verified Voters</h3>
-                  <div className="stat-value">{statistics.verified_voters || 0}</div>
-                </div>
-                <div className="stat-card">
-                  <h3>🔍 ID Verification Attempts</h3>
-                  <div className="stat-value">{statistics.total_attempts || 0}</div>
-                </div>
-                <div className="stat-card">
-                  <h3>🗳️ Total Votes</h3>
-                  <div className="stat-value">{statistics.total_votes || 0}</div>
-                </div>
-                <div className="stat-card">
-                  <h3>📍 Total Precincts</h3>
-                  <div className="stat-value">{statistics.total_precincts}</div>
+                <div className="stat-card" style={{ flex: '1 1 240px', background: '#f7fcf5' }}>
+                  <h3>Total Counted Votes</h3>
+                  <div className="stat-value">{totalCandidateVotes}</div>
+                  <div style={{ color: '#666', marginTop: '4px' }}>Across all candidates</div>
                 </div>
               </div>
             </div>
@@ -378,16 +383,20 @@ function AdminDashboard({ token, onLogout }) {
                   <div className="stat-value">{statistics.avg_turnout?.toFixed(2) || '0.00'}%</div>
                 </div>
                 <div className="stat-card">
-                  <h3>Candidate A Votes</h3>
+                  <h3>🗳️ Total Votes</h3>
+                  <div className="stat-value">{statistics.total_votes || 0}</div>
+                </div>
+                <div className="stat-card">
+                  <h3>Narendra Modi ji Votes</h3>
                   <div className="stat-value">{statistics.candidate_a_votes || 0}</div>
                 </div>
                 <div className="stat-card">
-                  <h3>Candidate B Votes</h3>
+                  <h3>Rahul Gandhi ji Votes</h3>
                   <div className="stat-value">{statistics.candidate_b_votes || 0}</div>
                 </div>
                 <div className="stat-card">
                   <h3>⚠️ Suspicious Precincts</h3>
-                  <div className="stat-value">{statistics.suspicious_precincts}</div>
+                  <div className="stat-value">{statistics.suspicious_precincts || 0}</div>
                 </div>
               </div>
 
@@ -525,7 +534,7 @@ function AdminDashboard({ token, onLogout }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="votes_candidate_a">Votes for Candidate A</label>
+                  <label htmlFor="votes_candidate_a">Votes for Narendra Modi ji</label>
                   <input
                     type="number"
                     className="form-control"
@@ -537,7 +546,7 @@ function AdminDashboard({ token, onLogout }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="votes_candidate_b">Votes for Candidate B</label>
+                  <label htmlFor="votes_candidate_b">Votes for Rahul Gandhi ji</label>
                   <input
                     type="number"
                     className="form-control"
@@ -585,8 +594,8 @@ function AdminDashboard({ token, onLogout }) {
                   <thead>
                     <tr>
                       <th>Precinct</th>
-                      <th>Candidate A</th>
-                      <th>Candidate B</th>
+                      <th>Narendra Modi ji</th>
+                      <th>Rahul Gandhi ji</th>
                       <th>Registered Voters</th>
                       <th>Turnout %</th>
                       <th>Status</th>
@@ -616,22 +625,9 @@ function AdminDashboard({ token, onLogout }) {
             <div className="eci-card">
               <h2>⚠️ Fraud Detection Analysis</h2>
               <p>Run machine learning analysis to detect potential election fraud based on statistical anomalies.</p>
-              <button className="btn btn-primary" onClick={runAnalysis} style={{ marginRight: '10px' }}>
+              <button className="btn btn-primary" onClick={runAnalysis}>
                 Run ML Analysis
               </button>
-              <button className="btn btn-primary" onClick={runBenfordAnalysis}>
-                Run Benford's Law Analysis
-              </button>
-
-              {benfordAnalysis && (
-                <div style={{ marginTop: '20px' }}>
-                  <div className="alert" style={{ background: benfordAnalysis.benford_analysis.conforms_to_benford ? '#d4edda' : '#f8d7da', borderColor: benfordAnalysis.benford_analysis.conforms_to_benford ? '#c3e6cb' : '#f5c6cb', color: benfordAnalysis.benford_analysis.conforms_to_benford ? '#155724' : '#721c24' }}>
-                    <strong>Result:</strong> {benfordAnalysis.interpretation.result}
-                  </div>
-                  <p><strong>Chi-Square Value:</strong> {benfordAnalysis.benford_analysis.chi_square.toFixed(2)}</p>
-                  <p><strong>Sample Size:</strong> {benfordAnalysis.benford_analysis.sample_size}</p>
-                </div>
-              )}
             </div>
           </>
         )}
