@@ -1,13 +1,13 @@
 # Election System with AI-Powered Fraud Detection
 
-A comprehensive web-based voting system with **Google Cloud Vertex AI** fraud detection using machine learning to ensure election integrity.
+A comprehensive web-based voting system with **Random Forest** fraud detection using machine learning to ensure election integrity.
 
 ## Features
 
 - **User Authentication**: Multi-factor authentication with email OTP
 - **Identity Verification**: Facial recognition for voter verification
 - **Secure Voting**: End-to-end encrypted vote casting
-- **AI Fraud Detection**: Real-time fraud detection using Vertex AI (XGBoost/AutoML)
+- **AI Fraud Detection**: Real-time fraud detection using Random Forest algorithm
 - **Behavioral Analysis**: Tracks 20+ voter behavior features
 - **Admin Dashboard**: Comprehensive monitoring and fraud analytics
 - **Real-time Alerts**: Automatic flagging of suspicious voting patterns
@@ -18,9 +18,8 @@ A comprehensive web-based voting system with **Google Cloud Vertex AI** fraud de
 - **Frontend**: React.js
 - **Backend**: Python (Flask)
 - **Database**: MongoDB
-- **ML/AI**: Google Cloud Vertex AI (XGBoost, AutoML Tabular)
+- **ML/AI**: Random Forest (scikit-learn)
 - **Security**: JWT, bcrypt, MFA, Data Encryption
-- **Cloud**: Google Cloud Platform (Vertex AI, Cloud Storage)
 
 ## Quick Start
 1. Navigate to the `backend` directory
@@ -30,18 +29,10 @@ A comprehensive web-based voting system with **Google Cloud Vertex AI** fraud de
 1. Navigate to the `frontend` directory
 2. Install dependencies: `npm install`
 3. Start the development server: `npm start`
-See [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md) for complete setup instructions.
-
 **Quick setup:**
-1. Set up Google Cloud project with Vertex AI API enabled
-2. Create service account and download credentials
-3. Configure environment variables in `.env`:
-   ```
-   GCP_PROJECT_ID=your-project-id
-   GCP_LOCATION=us-central1
-   GOOGLE_APPLICATION_CREDENTIALS=./vertex-ai-key.json
-   ```
-4. Run setup verification: `python backend/setup_vertex_ai.py`
+1. Install required dependencies: `pip install -r backend/requirements.txt`
+2. Random Forest model will be automatically trained on first run
+3. Model is saved locally and used for real-time fraud detection
 
 ## Project Structure
 
@@ -49,11 +40,8 @@ See [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md) for complete se
 election-fraud-detection/
 ├── backend/                      # Python Flask backend
 │   ├── app_mongodb.py            # Main application
-│   ├── fraud_detection.py        # Vertex AI fraud detection module
+│   ├── random_forest_fraud.py    # Random Forest fraud detection module
 │   ├── behavior_tracker.py       # Voter behavior tracking service
-│   ├── train_fraud_model.py      # Model training script
-│   ├── setup_vertex_ai.py        # Vertex AI setup verification
-│   ├── convert_training_data.py  # Training data converter
 │   └── requirements.txt          # Python dependencies
 ├── frontend/                     # React frontend
 │   ├── public/                   # Static files
@@ -63,7 +51,6 @@ election-fraud-detection/
 │   │   │   ├── VoterDashboard.js # Voter interface
 │   │   │   └── Login.js          # Authentication
 │   │   └── App.js                # Main component
-├── VERTEX_AI_FRAUD_DETECTION.md  # Fraud detection documentation
 ├── ADMIN_LOGIN_GUIDE.md          # Admin monitoring guide
 └── README.md                     # Project documentation
 ```
@@ -74,7 +61,7 @@ election-fraud-detection/
 
 1. **Data Collection**: Tracks voter behavior (login patterns, session data, device info)
 2. **Feature Extraction**: Analyzes 20+ behavioral features
-3. **ML Prediction**: Vertex AI model predicts fraud probability (0.0 - 1.0)
+3. **ML Prediction**: Random Forest model predicts fraud probability (0.0 - 1.0)
 4. **Risk Assessment**: Categorizes as Low/Medium/High risk
 5. **Action**: Allows, flags for review, or blocks suspicious votes
 
@@ -94,17 +81,11 @@ election-fraud-detection/
 
 ### Training Your Own Model
 
-```bash
-# 1. Export training data
-curl -X GET http://localhost:5000/api/admin/export-training-data \
-  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  -o training_data.json
-
-# 2. Convert to CSV
-  --training-data training_data.csv \
-  --model-type automl \
-echo "VERTEX_AI_ENDPOINT_ID=your-endpoint-id" >> .env
-```
+The Random Forest model is automatically trained and updated:
+- Model trains on existing voting data when the application starts
+- Continuously improves as more voting data is collected
+- Model is saved locally in `backend/models/random_forest_model.pkl`
+- No cloud services or API keys required
 ├── frontend/               # React frontend
 │   │   ├── pages/          # Page components
 │   │   ├── services/       # API services
@@ -150,26 +131,19 @@ See [ADMIN_LOGIN_GUIDE.md](ADMIN_LOGIN_GUIDE.md) for detailed admin panel featur
 
 ## Documentation
 
-- **[VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md)**: Complete guide to Vertex AI fraud detection
 - **[ADMIN_LOGIN_GUIDE.md](ADMIN_LOGIN_GUIDE.md)**: Admin dashboard and monitoring guide
 - **[SECURITY_FEATURES.md](SECURITY_FEATURES.md)**: Security architecture documentation
 - **[MONGODB_LOCAL_SETUP.md](MONGODB_LOCAL_SETUP.md)**: MongoDB installation guide
 
-## Cost Estimation (Vertex AI)
+## Cost Estimation
 
-### AutoML Tabular
-- Training: ~$20/month
-- Deployment: ~$50/month
-- Predictions: ~$0.50/month (10K votes)
-- **Total**: ~$70/month
+### Random Forest (Local)
+- Training: Free (runs locally)
+- Deployment: Free (no cloud services)
+- Predictions: Free (unlimited)
+- **Total**: $0/month
 
-### Custom XGBoost
-- Training: <$1/month
-- Deployment: ~$36/month
-- Predictions: ~$0.20/month (10K votes)
-- **Total**: ~$37/month
-
-*Costs scale with usage. See [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md) for details.*
+*All fraud detection runs locally with no external API costs.*
 
 ## License
 
@@ -177,4 +151,4 @@ This project is for educational purposes.
 
 ## Support
 
-For issues or questions about fraud detection, see the troubleshooting section in [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md).
+For issues or questions about fraud detection, check the logs in `backend/logs/` or review the Random Forest implementation in `backend/random_forest_fraud.py`.
