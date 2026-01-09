@@ -63,7 +63,6 @@ election-fraud-detection/
 │   │   │   ├── VoterDashboard.js # Voter interface
 │   │   │   └── Login.js          # Authentication
 │   │   └── App.js                # Main component
-├── VERTEX_AI_FRAUD_DETECTION.md  # Fraud detection documentation
 ├── ADMIN_LOGIN_GUIDE.md          # Admin monitoring guide
 └── README.md                     # Project documentation
 ```
@@ -74,7 +73,7 @@ election-fraud-detection/
 
 1. **Data Collection**: Tracks voter behavior (login patterns, session data, device info)
 2. **Feature Extraction**: Analyzes 20+ behavioral features
-3. **ML Prediction**: Vertex AI model predicts fraud probability (0.0 - 1.0)
+3. **ML Prediction**: Ranndom Forest model predicts fraud probability (0.0 - 1.0)
 4. **Risk Assessment**: Categorizes as Low/Medium/High risk
 5. **Action**: Allows, flags for review, or blocks suspicious votes
 
@@ -150,31 +149,7 @@ See [ADMIN_LOGIN_GUIDE.md](ADMIN_LOGIN_GUIDE.md) for detailed admin panel featur
 
 ## Documentation
 
-- **[VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md)**: Complete guide to Vertex AI fraud detection
 - **[ADMIN_LOGIN_GUIDE.md](ADMIN_LOGIN_GUIDE.md)**: Admin dashboard and monitoring guide
 - **[SECURITY_FEATURES.md](SECURITY_FEATURES.md)**: Security architecture documentation
 - **[MONGODB_LOCAL_SETUP.md](MONGODB_LOCAL_SETUP.md)**: MongoDB installation guide
 
-## Cost Estimation (Vertex AI)
-
-### AutoML Tabular
-- Training: ~$20/month
-- Deployment: ~$50/month
-- Predictions: ~$0.50/month (10K votes)
-- **Total**: ~$70/month
-
-### Custom XGBoost
-- Training: <$1/month
-- Deployment: ~$36/month
-- Predictions: ~$0.20/month (10K votes)
-- **Total**: ~$37/month
-
-*Costs scale with usage. See [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md) for details.*
-
-## License
-
-This project is for educational purposes.
-
-## Support
-
-For issues or questions about fraud detection, see the troubleshooting section in [VERTEX_AI_FRAUD_DETECTION.md](VERTEX_AI_FRAUD_DETECTION.md).
