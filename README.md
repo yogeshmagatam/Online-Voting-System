@@ -5,31 +5,45 @@ A comprehensive web-based voting system with **Random Forest** fraud detection u
 ## Features
 
 - **User Authentication**: Multi-factor authentication with email OTP
-- **Identity Verification**: Facial recognition for voter verification
-- **Secure Voting**: End-to-end encrypted vote casting
+- **Identity Verification**: Facial recognition for voter verification using face_recognition library
+- **Secure Voting**: End-to-end encrypted vote casting with behavioral tracking
 - **AI Fraud Detection**: Real-time fraud detection using Random Forest algorithm
 - **Behavioral Analysis**: Tracks 20+ voter behavior features
-- **Admin Dashboard**: Comprehensive monitoring and fraud analytics
+- **Admin Dashboard**: Comprehensive monitoring and fraud analytics with Chart.js visualizations
+- **Voter Dashboard**: Identity verification, candidate selection, and voting interface
+- **Public Information Pages**: Accessible mission, security, privacy, FAQ, support, and accessibility pages
 - **Real-time Alerts**: Automatic flagging of suspicious voting patterns
+- **React Router v6**: Client-side routing with protected routes for role-based access
 - **Audit Trail**: Complete transaction history with blockchain-ready architecture
 
 ## Tech Stack
 
-- **Frontend**: React.js
+- **Frontend**: React 17 with React Router v6, Bootstrap, Chart.js
 - **Backend**: Python (Flask)
 - **Database**: MongoDB
 - **ML/AI**: Random Forest (scikit-learn)
-- **Security**: JWT, bcrypt, MFA, Data Encryption
+- **Security**: JWT, bcrypt, MFA, Face Recognition, Data Encryption
 
 ## Quick Start
+1. NBackend Setup
 1. Navigate to the `backend` directory
 2. Create a virtual environment: `python -m venv venv`
-3. Activate the virtual environment:
+3. Activate the virtual environment (Windows): `venv\Scripts\activate`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Start MongoDB (see MONGODB_LOCAL_SETUP.md)
+6. Run the application: `python app_mongodb.py`
+
 ### Frontend Setup
 1. Navigate to the `frontend` directory
 2. Install dependencies: `npm install`
 3. Start the development server: `npm start`
+4. Open browser to `http://localhost:3000`
+
 **Quick setup:**
+1. Random Forest model will be automatically trained on first run
+2. Model is saved locally and used for real-time fraud detection
+3. All React components use .jsx extensions
+4. React Router v6 handles all naviga
 1. Install required dependencies: `pip install -r backend/requirements.txt`
 2. Random Forest model will be automatically trained on first run
 3. Model is saved locally and used for real-time fraud detection
@@ -38,21 +52,40 @@ A comprehensive web-based voting system with **Random Forest** fraud detection u
 
 ```
 election-fraud-detection/
-├── backend/                      # Python Flask backend
-│   ├── app_mongodb.py            # Main application
-│   ├── random_forest_fraud.py    # Random Forest fraud detection module
-│   ├── behavior_tracker.py       # Voter behavior tracking service
-│   └── requirements.txt          # Python dependencies
-├── frontend/                     # React frontend
-│   ├── public/                   # Static files
-│   ├── src/                      # Source code
-│   │   ├── components/           # React components
-│   │   │   ├── AdminDashboard.js # Admin fraud analytics
-│   │   │   ├── VoterDashboard.js # Voter interface
-│   │   │   └── Login.js          # Authentication
-│   │   └── App.js                # Main component
-├── ADMIN_LOGIN_GUIDE.md          # Admin monitoring guide
-└── README.md                     # Project documentation
+├── backend/                        # Python Flask backend
+│   ├── app_mongodb.py              # Main application
+│   ├── random_forest_fraud.py      # Random Forest fraud detection module
+│   ├── behavior_tracker.py         # Voter behavior tracking service
+│   └── requirements.txt            # Python dependencies
+├── frontend/                       # React frontend
+│   ├── public/                     # Static files
+│   │   └── index.html              # HTML template
+│   ├── src/                        # Source code
+│   │   ├── components/             # React components (.jsx)
+│   │   │   ├── AdminDashboard.jsx  # Admin fraud analytics
+│   │   │   ├── VoterDashboard.jsx  # Voter interface with identity verification
+│   │   │   ├── Dashboard.jsx       # Generic dashboard
+│   │   │   ├── Login.jsx           # Authentication with OTP
+│   │   │   ├── Register.jsx        # Voter registration
+│   │   │   ├── RegisterAdmin.jsx   # Admin registration
+│   │   │   ├── IdentityVerification.jsx # Face recognition verification
+│   │   │   ├── RoleProtectedRoute.jsx   # Route protection
+│   │   │   ├── public/             # Public information pages
+│   │   │   │   ├── Home.jsx
+│   │   │   │   ├── Mission.jsx
+│   │   │   │   ├── Security.jsx
+│   │   │   │   ├── Privacy.jsx
+│   │   │   │   ├── FAQ.jsx
+│   │   │   │   ├── Support.jsx
+│   │   │   │   ├── Accessibility.jsx
+│   │   │   │   └── About.jsx
+│   │   │   └── layout/
+│   │   │       └── SiteLayout.jsx  # Shared layout component
+│   │   ├── index.jsx               # React entry point
+│   │   └── App.jsx                 # Main app with routing
+│   └── package.json                # NPM dependencies
+├── ADMIN_LOGIN_GUIDE.md            # Admin monitoring guide
+└── README.md                       # Project documentation
 ```
 
 ## Fraud Detection System
@@ -111,8 +144,9 @@ The Random Forest model is automatically trained and updated:
   - Review flagged transactions
   - Export fraud assessment reports
   - Monitor fraud detection model performance
-- Activity and security logs
-- System configuration
+  - Dataset summary and model status
+- Election outcome visualization with charts
+- User statistics and activity monitoring
 
 ### Fraud Analytics API Endpoints
 

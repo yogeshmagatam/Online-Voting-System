@@ -25,6 +25,53 @@ class FraudDetector:
     def __init__(self):
         self.model_source = "random_forest_local" if (get_rf_service and get_rf_service()) else "rule_based"
     
+    def extract_model_features(self, voter_data: Dict, vote_data: Dict, historical_data: List[Dict]) -> Dict:
+        """
+        Extract features compatible with the voting_fraud_model.pkl
+        Expected features: ['voter_id', 'age', 'ip_address', 'device_id', 
+                          'login_attempts', 'vote_duration_sec', 'location_match', 'previous_votes']
+        
+        Args:
+            voter_data: Current voter information
+            vote_data: Current vote attempt data
+            historical_data: Historical voting patterns
+            
+        Returns:
+            Dictionary of extracted features for the model
+        """
+        features = {}
+        
+        # Voter ID (hash to numeric)
+        features['voter_id'] = hash(voter_data.get('voter_id', '')) % (10 ** 8)
+        
+        # Age
+        features['age'] = voter_data.get('age', 0)
+        
+        # IP address (hash to numeric)
+        features['ip_address'] = hash(vote_data.get('ip_address', '')) % (10 ** 8)
+        
+        # Device ID (hash of user agent to numeric)
+        features['device_id'] = hash(vote_data.get('user_agent', '')) % (10 ** 8)
+        
+        # Login attempts
+        features['login_attempts'] = vote_data.get('login_attempts', 1)
+        
+        # Vote duration (session duration)
+        features['vote_duration_sec'] = vote_data.get('session_duration', 0)
+        
+        # Location match (1 if IP is consistent with history, 0 otherwise)
+        if historical_data:
+            historical_ips = [h.get('ip_address', '') for h in historical_data]
+            current_ip = vote_data.get('ip_address', '')
+            features['location_match'] = 1 if current_ip in historical_ips else 0
+        else:
+            features['location_match'] = 1  # First vote, assume match
+        
+        # Previous votes count
+        features['previous_votes'] = len(historical_data)
+        
+        return features
+    
     def extract_voter_behavior_features(self, voter_data: Dict, 
                                        vote_data: Dict, 
                                        historical_data: List[Dict]) -> Dict:
@@ -122,35 +169,6 @@ class FraudDetector:
                 logger.warning(f"Local RF prediction failed: {e}")
         logger.info("Using rule-based detection")
         return self._rule_based_detection(features)
-        
-        try:
-            # Prepare instance for prediction
-            instance_dict = {k: float(v) for k, v in features.items()}
-            instance = json_format.ParseDict(instance_dict, Value())
-            instances = [instance]
-            
-            # Get prediction from Vertex AI
-            response = self.endpoint.predict(instances=instances)
-            
-            # Extract fraud probability
-            predictions = response.predictions
-            fraud_prob = float(predictions[0]['fraud_probability']) if predictions else 0.0
-            
-            prediction_details = {
-                'model_type': 'vertex_ai',
-                'endpoint_id': self.endpoint_id,
-                'timestamp': datetime.utcnow().isoformat(),
-                'features_used': list(features.keys()),
-                'raw_prediction': predictions[0] if predictions else None
-            }
-            
-            logger.info(f"Fraud prediction: {fraud_prob:.4f}")
-            return fraud_prob, prediction_details
-            
-        except Exception as e:
-            logger.error(f"Vertex AI prediction failed: {e}")
-            logger.info("Falling back to rule-based detection")
-            return self._rule_based_detection(features)
     
     def _rule_based_detection(self, features: Dict) -> Tuple[float, Dict]:
         """
@@ -232,13 +250,33 @@ class FraudDetector:
         Returns:
             Dictionary containing risk assessment results
         """
-        # Extract features
-        features = self.extract_voter_behavior_features(
+        # Extract model-compatible features for ML prediction
+        model_features = self.extract_model_features(
             voter_data, vote_data, historical_data
         )
         
-        # Get fraud prediction
-        fraud_prob, prediction_details = self.predict_fraud_probability(features)
+        # Extract behavior features for rule-based fallback
+        behavior_features = self.extract_voter_behavior_features(
+            voter_data, vote_data, historical_data
+        )
+        
+        # Try ML prediction first with model features, fallback to rules with behavior features
+        rf_service = get_rf_service() if get_rf_service else None
+        if rf_service and rf_service.is_ready():
+            try:
+                fraud_prob = rf_service.predict_proba(model_features)
+                prediction_details = {
+                    'model_type': 'random_forest_local',
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'features_used': list(model_features.keys())
+                }
+                logger.info(f"RF fraud prediction: {fraud_prob:.4f}")
+            except Exception as e:
+                logger.warning(f"ML prediction failed: {e}, falling back to rules")
+                fraud_prob, prediction_details = self._rule_based_detection(behavior_features)
+        else:
+            # Use rule-based detection with behavior features
+            fraud_prob, prediction_details = self._rule_based_detection(behavior_features)
         
         # Determine risk level
         if fraud_prob < 0.3:
@@ -258,7 +296,8 @@ class FraudDetector:
             'recommended_action': action,
             'timestamp': datetime.utcnow().isoformat(),
             'voter_id': voter_data.get('voter_id'),
-            'features': features,
+            'features': model_features,
+            'behavior_features': behavior_features,
             'prediction_details': prediction_details
         }
         

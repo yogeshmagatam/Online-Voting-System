@@ -24,10 +24,70 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_FEATURES = [
-    'hour_of_day', 'day_of_week', 'is_weekend',
-    'session_duration', 'page_views', 'time_on_voting_page',
-    'login_attempts', 'is_mobile', 'identity_verified'
+    'voter_id', 'age', 'ip_address', 'device_id', 
+    'login_attempts', 'vote_duration_sec', 'location_match', 'previous_votes'
 ]
+
+
+def load_voting_fraud_dataset(csv_path: Optional[str] = None) -> List[Dict]:
+    """
+    Load voting fraud dataset from CSV file
+    
+    Args:
+        csv_path: Path to CSV file. If None, uses default path relative to this file
+        
+    Returns:
+        List of dictionaries with voting fraud data
+    """
+    if csv_path is None:
+        # Use default path: same directory as this module
+        csv_path = os.path.join(os.path.dirname(__file__), 'voting_fraud_dataset.csv')
+    
+    if not os.path.exists(csv_path):
+        logger.warning(f"Dataset not found at {csv_path}")
+        return []
+    
+    try:
+        df = pd.read_csv(csv_path)
+        
+        # Convert numeric features to appropriate types
+        numeric_columns = ['voter_id', 'age', 'ip_address', 'device_id', 'login_attempts', 
+                          'vote_duration_sec', 'location_match', 'previous_votes']
+        
+        # Handle voter_id: extract numeric part if it's text like "V0001"
+        if 'voter_id' in df.columns and df['voter_id'].dtype == object:
+            df['voter_id'] = df['voter_id'].str.extract(r'(\d+)').astype(int)
+        
+        # Handle ip_address: convert to hash or numeric representation
+        if 'ip_address' in df.columns and df['ip_address'].dtype == object:
+            df['ip_address'] = df['ip_address'].apply(lambda x: hash(str(x)) % (10 ** 8))
+        
+        # Handle device_id: convert to hash or numeric representation  
+        if 'device_id' in df.columns and df['device_id'].dtype == object:
+            df['device_id'] = df['device_id'].apply(lambda x: hash(str(x)) % (10 ** 8))
+        
+        # Ensure numeric columns are integers
+        for col in ['age', 'login_attempts', 'vote_duration_sec', 'location_match', 'previous_votes']:
+            if col in df.columns:
+                df[col] = df[col].astype(int)
+        
+        # Map target column: is_fraud -> is_fraud (for compatibility with model training)
+        if 'is_fraud' in df.columns:
+            # Keep as is for model training
+            pass
+        elif 'fraud_label' in df.columns:
+            df = df.rename(columns={'fraud_label': 'is_fraud'})
+        
+        logger.info(f"Loaded {len(df)} records from {csv_path}")
+        logger.info(f"Columns: {list(df.columns)}")
+        
+        # Convert to list of dictionaries
+        records = df.to_dict('records')
+        return records
+        
+    except Exception as e:
+        logger.error(f"Error loading dataset: {e}")
+        return []
 
 
 @dataclass
@@ -53,10 +113,23 @@ class RandomForestFraudModel:
         for col in ['is_mobile', 'identity_verified']:
             if col in df.columns:
                 df[col] = df[col].astype(int)
-        # Fill missing feature columns
+        # Ensure feature columns exist before type normalization
         for col in self.features:
             if col not in df.columns:
                 df[col] = 0
+        # Normalize expected numeric/text features
+        # voter_id may be like "V0001" -> extract digits
+        if 'voter_id' in df.columns and df['voter_id'].dtype == object:
+            df['voter_id'] = df['voter_id'].astype(str).str.extract(r'(\d+)').fillna('0').astype(int)
+        # Convert textual ip/device to stable numeric hashes
+        if 'ip_address' in df.columns and df['ip_address'].dtype == object:
+            df['ip_address'] = df['ip_address'].astype(str).apply(lambda x: hash(x) % (10 ** 8))
+        if 'device_id' in df.columns and df['device_id'].dtype == object:
+            df['device_id'] = df['device_id'].astype(str).apply(lambda x: hash(x) % (10 ** 8))
+        # Cast remaining numeric features to int
+        for col in ['age', 'login_attempts', 'vote_duration_sec', 'location_match', 'previous_votes']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
         return df
 
     def train_from_records(self, records: List[Dict], target: str = 'is_fraud') -> Dict:
@@ -75,7 +148,8 @@ class RandomForestFraudModel:
         )
 
         # Balanced class weights
-        classes = [0, 1]
+        import numpy as np
+        classes = np.array([0, 1])
         class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=y_train)
         class_weight_dict = {c: w for c, w in zip(classes, class_weights)}
 
@@ -117,6 +191,7 @@ class RandomForestFraudModel:
         if self.model is None:
             raise RuntimeError('No trained model to save')
         os.makedirs(os.path.dirname(artifacts.model_path), exist_ok=True)
+        os.makedirs(os.path.dirname(artifacts.features_path), exist_ok=True)
         joblib.dump(self.model, artifacts.model_path)
         with open(artifacts.features_path, 'w') as f:
             json.dump(self.features, f)
@@ -132,8 +207,11 @@ class RandomForestFraudModel:
 class RandomForestFraudService:
     def __init__(self, models_dir: str = './models/rf'):
         self.models_dir = models_dir
+        # First try to load voting_fraud_model.pkl from backend directory
+        backend_model_path = os.path.join(os.path.dirname(__file__), 'voting_fraud_model.pkl')
+        
         self.artifacts = RFArtifacts(
-            model_path=os.path.join(models_dir, 'rf_fraud_model.pkl'),
+            model_path=backend_model_path if os.path.exists(backend_model_path) else os.path.join(models_dir, 'rf_fraud_model.pkl'),
             features_path=os.path.join(models_dir, 'rf_features.json'),
         )
         self.model = RandomForestFraudModel()
@@ -143,9 +221,18 @@ class RandomForestFraudService:
     def _try_load(self):
         try:
             if os.path.exists(self.artifacts.model_path):
-                self.model.load(self.artifacts)
+                # Load the pre-trained model
+                self.model.model = joblib.load(self.artifacts.model_path)
+                
+                # Try to load features if available
+                if os.path.exists(self.artifacts.features_path):
+                    with open(self.artifacts.features_path, 'r') as f:
+                        self.model.features = json.load(f)
+                
                 self._ready = True
-                logger.info('Loaded RandomForest model for fraud detection')
+                logger.info(f'Loaded RandomForest model from: {self.artifacts.model_path}')
+            else:
+                logger.warning(f'Model file not found at: {self.artifacts.model_path}')
         except Exception as e:
             logger.warning(f'RF load failed: {e}')
             self._ready = False

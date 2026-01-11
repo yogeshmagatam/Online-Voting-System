@@ -1,0 +1,1 @@
+["voter_id", "age", "ip_address", "device_id", "login_attempts", "vote_duration_sec", "location_match", "previous_votes"]
