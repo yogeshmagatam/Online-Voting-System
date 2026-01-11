@@ -6,12 +6,20 @@ _tracker = None
 class BehaviorTracker:
     def __init__(self, db):
         self.db = db
-        # Access MongoDB collections correctly (Database has no callable get; use bracket or get_collection)
-        self.votes = db.get_collection('votes')
-        self.vote_attempts = db.get_collection('vote_attempts')
-        self.fraud_assessments = db.get_collection('fraud_assessments')
+        self.enabled = db is not None
+        if self.enabled:
+            # Access MongoDB collections correctly (Database has no callable get; use bracket or get_collection)
+            self.votes = db.get_collection('votes')
+            self.vote_attempts = db.get_collection('vote_attempts')
+            self.fraud_assessments = db.get_collection('fraud_assessments')
+        else:
+            self.votes = None
+            self.vote_attempts = None
+            self.fraud_assessments = None
 
     def get_recent_votes(self, user_id: str, hours: int = 1) -> int:
+        if not self.enabled:
+            return 0
         since = datetime.datetime.utcnow() - datetime.timedelta(hours=hours)
         return self.votes.count_documents({
             'user_id': user_id,
@@ -19,6 +27,8 @@ class BehaviorTracker:
         })
 
     def get_voter_history(self, user_id: str, days: int = 30) -> List[Dict]:
+        if not self.enabled:
+            return []
         since = datetime.datetime.utcnow() - datetime.timedelta(days=days)
         cursor = self.votes.find({
             'user_id': user_id,
@@ -27,6 +37,8 @@ class BehaviorTracker:
         return list(cursor)
 
     def track_vote_attempt(self, user_id: str, session_id: str, vote_attempt_data: Dict, request_data: Dict) -> None:
+        if not self.enabled:
+            return
         doc = {
             'user_id': user_id,
             'session_id': session_id,
@@ -37,12 +49,16 @@ class BehaviorTracker:
         self.vote_attempts.insert_one(doc)
 
     def store_fraud_assessment(self, assessment: Dict) -> None:
+        if not self.enabled:
+            return
         # Add a created_at for sorting
         assessment = dict(assessment)
         assessment['created_at'] = datetime.datetime.utcnow()
         self.fraud_assessments.insert_one(assessment)
 
     def export_training_data(self, labeled_only: bool = False) -> List[Dict]:
+        if not self.enabled:
+            return []
         # Join vote_attempts with fraud_assessments by voter_id and timestamp proximity
         attempts = list(self.vote_attempts.find().sort('timestamp', 1))
         assessments = list(self.fraud_assessments.find().sort('timestamp', 1))
