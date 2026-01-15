@@ -13,7 +13,7 @@ pyotp>=2.9.0
 bleach>=6.1.0
 bcrypt>=4.0.1
 
-# Use pre-built wheels for data science packages - simplified versions
+# Use pre-built wheels for data science packages - simplified versions  
 # IMPORTANT: numpy must be <2.0 for dlib compatibility
 numpy>=1.26.0,<2.0
 pandas>=2.1.3
