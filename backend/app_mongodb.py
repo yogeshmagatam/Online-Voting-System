@@ -1495,24 +1495,48 @@ def get_statistics():
         print(f"[Statistics] Turnout (verified voters): {turnout_of_verified}%")
         print(f"[Statistics] Turnout (all registered): {turnout_of_all}%")
         
-        # Get precinct votes
+        # Get dataset summary for suspicious precinct calculation
+        dataset_summary = load_fraud_dataset_summary()
+        dataset_available = dataset_summary.get('available', False)
+        dataset_fraudulent = dataset_summary.get('fraudulent_votes', 0)
+        dataset_total = dataset_summary.get('total_rows', 0)
+        
+        # Calculate suspicious precincts from dataset
+        # Assume dataset represents historical/batch data distributed across precincts
+        # If fraud rate is high (>10%), count it as 1 suspicious precinct from dataset
+        dataset_suspicious_precincts = 0
+        if dataset_available and dataset_total > 0:
+            fraud_rate = dataset_fraudulent / dataset_total
+            if fraud_rate > 0.10:  # More than 10% fraud rate
+                dataset_suspicious_precincts = 1
+        
+        # Get precinct votes from live voting
         precincts = ['Precinct 1', 'Precinct 2', 'Precinct 3']
         precinct_votes = {}
         total_precincts = len(precincts)
-        suspicious_precincts = 0
+        live_suspicious_precincts = 0
         
         for precinct in precincts:
             precinct_vote_count = votes_collection.count_documents({'precinct': precinct})
             precinct_votes[precinct] = precinct_vote_count
+            print(f"[Statistics] {precinct}: {precinct_vote_count} votes")
             
-            # Check for suspicious activity
+            # Check for suspicious activity in live votes
             if precinct_vote_count > 0:
                 precinct_a = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate A'})
                 precinct_b = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate B'})
                 max_votes = max(precinct_a, precinct_b)
+                ratio = max_votes / precinct_vote_count if precinct_vote_count > 0 else 0
+                print(f"  → A: {precinct_a}, B: {precinct_b}, Max ratio: {ratio:.2%}")
                 # Flag if one candidate has >95% of votes
-                if max_votes / precinct_vote_count > 0.95:
-                    suspicious_precincts += 1
+                if ratio > 0.95:
+                    live_suspicious_precincts += 1
+                    print(f"  → SUSPICIOUS (ratio {ratio:.2%} > 95%)")
+        
+        # Combine dataset and live suspicious precincts
+        total_suspicious_precincts = dataset_suspicious_precincts + live_suspicious_precincts
+        print(f"[Statistics] Live suspicious precincts: {live_suspicious_precincts}")
+        print(f"[Statistics] Dataset suspicious precincts: {dataset_suspicious_precincts}")
         
         response = {
             'total_votes': total_votes,
@@ -1525,9 +1549,12 @@ def get_statistics():
             'candidate_a_votes': candidate_a_votes,
             'candidate_b_votes': candidate_b_votes,
             'total_precincts': total_precincts,
-            'suspicious_precincts': suspicious_precincts,
+            'suspicious_precincts': total_suspicious_precincts,
+            'live_suspicious_precincts': live_suspicious_precincts,
+            'dataset_suspicious_precincts': dataset_suspicious_precincts,
             'precinct_votes': precinct_votes
         }
+        print(f"[Statistics] Suspicious precincts - Dataset: {dataset_suspicious_precincts}, Live: {live_suspicious_precincts}, Total: {total_suspicious_precincts}")
         print(f"[Statistics] Response data: {response}")
         return jsonify(response), 200
     except Exception as e:

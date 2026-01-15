@@ -176,9 +176,11 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       const statsResult = await statsResponse.json();
       console.log('[AdminDashboard] Statistics received from /api/statistics:', statsResult);
       console.log('[AdminDashboard] avg_turnout value:', statsResult.avg_turnout);
+      console.log('[AdminDashboard] suspicious_precincts value:', statsResult.suspicious_precincts);
       setStatistics(prev => {
         const updated = { ...prev, ...statsResult };
         console.log('[AdminDashboard] Updated statistics state:', updated);
+        console.log('[AdminDashboard] Suspicious precincts in state:', updated.suspicious_precincts);
         return updated;
       });
     } catch (err) {
