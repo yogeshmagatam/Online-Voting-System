@@ -24,6 +24,9 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
     try {
       setCameraError('');
       setError('');
+      // Show the live preview UI immediately (like the Register page)
+      setCameraActive(true);
+      console.log('[Camera] Requesting camera access...');
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -34,13 +37,21 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
         audio: false
       });
 
+      console.log('[Camera] Stream obtained:', stream);
+      console.log('[Camera] Video tracks:', stream.getVideoTracks());
+
       if (videoRef.current) {
+        console.log('[Camera] Attaching stream to video element');
         videoRef.current.srcObject = stream;
+        
         // Ensure video plays
-        videoRef.current.play().catch(err => {
-          console.error('Video play error:', err);
+        videoRef.current.play().then(() => {
+          console.log('[Camera] Video is now playing');
+        }).catch(err => {
+          console.error('[Camera] Play error:', err);
         });
-        setCameraActive(true);
+      } else {
+        console.error('[Camera] videoRef.current is null');
       }
     } catch (err) {
       console.error('Camera error:', err);
@@ -62,6 +73,8 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
       }
       
       setCameraError(errorMessage);
+      // Hide camera UI and fall back to file upload if permission fails
+      setCameraActive(false);
       setUseFileUpload(true);
     }
   };
@@ -330,13 +343,38 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
 
             {cameraActive && (
               <div style={styles.cameraSection}>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  style={styles.video}
-                />
+                <p style={{ color: '#28a745', fontWeight: 'bold', marginBottom: '10px' }}>
+                  ✓ Camera Active - Live Preview
+                </p>
+                <div style={{ 
+                  position: 'relative', 
+                  width: '100%', 
+                  backgroundColor: '#000',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      maxHeight: '400px',
+                      minHeight: '300px',
+                      display: 'block',
+                      transform: 'scaleX(-1)',
+                      backgroundColor: '#000'
+                    }}
+                    onLoadedMetadata={(e) => {
+                      console.log('[Video] Metadata loaded, dimensions:', e.target.videoWidth, 'x', e.target.videoHeight);
+                    }}
+                    onPlaying={() => {
+                      console.log('[Video] Video is playing now');
+                    }}
+                  />
+                </div>
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 
                 <div style={styles.cameraInstructions}>
@@ -351,8 +389,8 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
                     className="btn btn-success"
                     style={{
                       ...styles.successButton,
-                      display: 'inline-block !important',
-                      visibility: 'visible !important',
+                      display: 'inline-block',
+                      visibility: 'visible',
                       opacity: 1,
                       position: 'relative',
                       zIndex: 100
@@ -365,8 +403,8 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
                     className="btn btn-secondary"
                     style={{
                       ...styles.secondaryButton,
-                      display: 'inline-block !important',
-                      visibility: 'visible !important',
+                      display: 'inline-block',
+                      visibility: 'visible',
                       opacity: 1,
                       position: 'relative',
                       zIndex: 100
@@ -600,7 +638,11 @@ const styles = {
     borderRadius: '4px',
     marginBottom: '10px',
     backgroundColor: '#000',
-    display: 'block'
+    display: 'block',
+    transform: 'scaleX(-1)',
+    WebkitTransform: 'scaleX(-1)',
+    objectFit: 'cover',
+    minHeight: '300px'
   },
   cameraInstructions: {
     backgroundColor: '#e7f3ff',

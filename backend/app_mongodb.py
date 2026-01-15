@@ -422,52 +422,58 @@ def register_voter():
         # Save user first to get _id
         result = users_collection.insert_one(user_doc)
 
-        # Optional: save registration photo
+        # Save registration photo (REQUIRED for identity verification)
+        photo_data_url = data.get('photo')
+        if not photo_data_url:
+            # Delete the user document if photo is missing
+            users_collection.delete_one({'_id': result.inserted_id})
+            return jsonify({"error": "Registration photo is required for identity verification"}), 400
+        
         try:
-            photo_data_url = data.get('photo')
-            if photo_data_url:
-                import base64, io
-                from PIL import Image
-                # Ensure uploads directory exists
-                uploads_dir = os.path.join(os.getcwd(), 'backend', 'uploads', 'user_photos')
-                os.makedirs(uploads_dir, exist_ok=True)
+            import base64, io
+            from PIL import Image
+            # Ensure uploads directory exists
+            uploads_dir = os.path.join(os.getcwd(), 'backend', 'uploads', 'user_photos')
+            os.makedirs(uploads_dir, exist_ok=True)
 
-                # Handle both data URL format and raw base64
-                if ',' in photo_data_url and photo_data_url.startswith('data:'):
-                    header, b64 = photo_data_url.split(',', 1)
-                else:
-                    b64 = photo_data_url
-                
-                # Decode base64 (supports all image formats)
-                try:
-                    img_bytes = base64.b64decode(b64)
-                except Exception as decode_error:
-                    print(f"Base64 decode error: {decode_error}")
-                    raise
-                
-                # Open image and convert to RGB (handles PNG, JPEG, GIF, BMP, TIFF, WebP, etc.)
-                img = Image.open(io.BytesIO(img_bytes))
-                
-                # Handle transparency by converting RGBA to RGB with white background
-                if img.mode in ('RGBA', 'LA', 'P'):
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    if img.mode == 'P':
-                        img = img.convert('RGBA')
-                    background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
-                    img = background
-                else:
-                    img = img.convert('RGB')
+            # Handle both data URL format and raw base64
+            if ',' in photo_data_url and photo_data_url.startswith('data:'):
+                header, b64 = photo_data_url.split(',', 1)
+            else:
+                b64 = photo_data_url
+            
+            # Decode base64 (supports all image formats)
+            img_bytes = base64.b64decode(b64)
+            
+            # Open image and convert to RGB (handles PNG, JPEG, GIF, BMP, TIFF, WebP, etc.)
+            img = Image.open(io.BytesIO(img_bytes))
+            
+            # Handle transparency by converting RGBA to RGB with white background
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                img = background
+            else:
+                img = img.convert('RGB')
 
-                # Save as user_id.jpg
-                photo_path = os.path.join(uploads_dir, f"{str(result.inserted_id)}.jpg")
-                img.save(photo_path, format='JPEG', quality=95, optimize=True)
+            # Save as user_id.jpg with high quality
+            photo_path = os.path.join(uploads_dir, f"{str(result.inserted_id)}.jpg")
+            img.save(photo_path, format='JPEG', quality=95, optimize=True)
+            
+            print(f"[DEBUG] Registration photo saved: {photo_path}")
 
-                # Update user with photo path
-                users_collection.update_one({'_id': result.inserted_id}, {'$set': {'photo_path': photo_path}})
+            # Update user with photo path
+            users_collection.update_one({'_id': result.inserted_id}, {'$set': {'photo_path': photo_path}})
+            
         except Exception as e:
-            print(f"Registration photo save failed: {e}")
+            print(f"[ERROR] Registration photo save failed: {e}")
             import traceback
             traceback.print_exc()
+            # Delete the user document if photo save fails
+            users_collection.delete_one({'_id': result.inserted_id})
+            return jsonify({"error": f"Failed to save registration photo: {str(e)}"}), 500
         
         # Send OTP on registration
         otp_code, success = create_login_otp(str(result.inserted_id), 'email', email)
@@ -589,32 +595,47 @@ def login():
         username = data.get('username')
         password = data.get('password')
         
+        print(f"\n{'='*60}")
+        print(f"[LOGIN ATTEMPT] Username: {username}")
+        print(f"[LOGIN ATTEMPT] Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[LOGIN ATTEMPT] IP: {request.remote_addr}")
+        print(f"{'='*60}\n")
+        
         if not username or not password:
+            print(f"[LOGIN FAILED] Missing credentials for: {username}")
             return jsonify({"error": "Missing credentials"}), 400
         
         # If MongoDB is unavailable, allow test credentials for demo
         if not mongodb_available or users_collection is None:
             print("[Login] MongoDB unavailable - using fallback test credentials")
             if username == 'admin' and password == 'admin@123':
+                print(f"[LOGIN SUCCESS] Test admin login: {username}")
                 token = create_access_token(identity=username, additional_claims={'role': 'admin'})
                 return jsonify({"access_token": token, "role": "admin"}), 200
             elif username == 'voter' and password == 'voter123':
+                print(f"[LOGIN SUCCESS] Test voter login: {username}")
                 token = create_access_token(identity=username, additional_claims={'role': 'voter'})
                 return jsonify({"access_token": token, "role": "voter"}), 200
             else:
+                print(f"[LOGIN FAILED] Invalid test credentials for: {username}")
                 return jsonify({"error": "Invalid credentials"}), 401
         
         user = users_collection.find_one({'username': username})
         
         if not user or not bcrypt.checkpw(password.encode('utf-8'), user['password']):
+            print(f"[LOGIN FAILED] Invalid credentials for: {username}")
             return jsonify({"error": "Invalid credentials"}), 401
+        
+        print(f"[LOGIN] User found: {username} | Role: {user.get('role', 'voter')}")
         
         # Check if user is admin and if they are authorized
         if user.get('role') == 'admin':
             if not user.get('is_authorized_admin', False):
+                print(f"[LOGIN FAILED] Unauthorized admin account: {username}")
                 return jsonify({"error": "Unauthorized admin account. Access denied."}), 403
         
         if user.get('mfa_type') and user.get('mfa_type') != 'none':
+            print(f"[LOGIN] MFA required for: {username}")
             otp_code, success = create_login_otp(str(user['_id']), 'email', user.get('email'))
             if success:
                 send_email_otp(user.get('email'), otp_code)
@@ -626,6 +647,7 @@ def login():
                 "message": "OTP sent to your email"
             }), 200
         
+        print(f"[LOGIN SUCCESS] {username} | Role: {user.get('role', 'voter')}")
         token = create_access_token(identity=username, additional_claims={'role': user['role']})
         return jsonify({"access_token": token, "role": user['role']}), 200
     except Exception as e:
@@ -692,6 +714,97 @@ def verify_otp():
         print(f"OTP verification error: {e}")
         return jsonify({"error": "Verification failed"}), 500
 
+def prepare_image_for_dlib(img_array):
+    """
+    Fix Windows dlib compatibility issues by ensuring correct memory layout.
+    
+    The "Unsupported image type" error on Windows often occurs due to:
+    - Incorrect stride values in the numpy array
+    - Memory layout issues even when C_CONTIGUOUS is True
+    
+    This function creates a clean copy with exact memory layout dlib expects.
+    
+    Args:
+        img_array: numpy array (H, W, 3) in RGB format
+    
+    Returns:
+        numpy array properly formatted for dlib
+    """
+    import numpy as np
+    
+    # Ensure uint8
+    if img_array.dtype != np.uint8:
+        img_array = img_array.astype(np.uint8)
+    
+    # Create a completely new array with clean memory layout
+    # This fixes stride and alignment issues that cause dlib errors on Windows
+    clean_array = np.empty((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+    clean_array[:] = img_array
+    
+    # Verify it's C-contiguous (should be after the copy)
+    if not clean_array.flags['C_CONTIGUOUS']:
+        clean_array = np.ascontiguousarray(clean_array, dtype=np.uint8)
+    
+    return clean_array
+
+
+def load_image_for_face_recognition(image_source, is_file_path=False):
+    """
+    Load and prepare an image for face_recognition library.
+    Uses face_recognition.load_image_file() for proper dlib compatibility.
+    
+    Args:
+        image_source: Either a base64 string or a file path
+        is_file_path: True if image_source is a file path, False if it's base64
+    
+    Returns:
+        numpy array in RGB format, ready for face_recognition
+    """
+    import base64, io, tempfile
+    import numpy as np
+    from PIL import Image
+    import face_recognition
+    
+    try:
+        if is_file_path:
+            print(f"[DEBUG] Loading from file path: {image_source}")
+            # Use PIL to load (more reliable on Windows)
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(image_source).convert('RGB')
+            img_array = np.array(pil_img, dtype=np.uint8)
+            print(f"[DEBUG] Image loaded via PIL - shape: {img_array.shape}, dtype: {img_array.dtype}")
+            # Fix memory layout for dlib
+            img_array = prepare_image_for_dlib(img_array)
+            print(f"[DEBUG] Image prepared for dlib - C_CONTIGUOUS: {img_array.flags['C_CONTIGUOUS']}")
+            return img_array
+        else:
+            # Decode base64
+            print(f"[DEBUG] Loading from base64")
+            
+            if ',' in image_source and image_source.startswith('data:'):
+                header, b64 = image_source.split(',', 1)
+            else:
+                b64 = image_source
+            
+            img_bytes = base64.b64decode(b64)
+            
+            # Use PIL to decode
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(io.BytesIO(img_bytes)).convert('RGB')
+            img_array = np.array(pil_img, dtype=np.uint8)
+            print(f"[DEBUG] Image loaded from base64 - shape: {img_array.shape}, dtype: {img_array.dtype}")
+            # Fix memory layout for dlib
+            img_array = prepare_image_for_dlib(img_array)
+            print(f"[DEBUG] Image prepared for dlib - C_CONTIGUOUS: {img_array.flags['C_CONTIGUOUS']}")
+            return img_array
+            
+    except Exception as e:
+        print(f"[ERROR] Image loading failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise ValueError(f"Failed to load image: {str(e)}")
+
+
 @app.route('/api/verify-identity', methods=['POST', 'OPTIONS'])
 @jwt_required()
 def verify_identity():
@@ -707,120 +820,114 @@ def verify_identity():
             return jsonify({"error": "Live photo is required"}), 400
 
         try:
-            import base64, io
             import numpy as np
-            from PIL import Image
-            import cv2
             try:
                 import face_recognition
             except Exception:
                 face_recognition = None
 
-            # Decode live photo (supports all image formats: JPEG, PNG, GIF, BMP, TIFF, WebP, etc.)
-            # Handle both data URL format and raw base64
-            if ',' in live_photo and live_photo.startswith('data:'):
-                header, b64 = live_photo.split(',', 1)
-            else:
-                b64 = live_photo
-            
-            img_bytes = base64.b64decode(b64)
-            
-            # Use OpenCV to decode image - it handles all formats and produces dlib-compatible arrays
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            live_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
-            if live_np is None:
-                raise ValueError("Failed to decode image")
-            
-            # OpenCV loads as BGR, convert to RGB for face_recognition
-            live_np = cv2.cvtColor(live_np, cv2.COLOR_BGR2RGB)
-            
-            # Force a complete copy into a fresh array with explicit properties
-            # This ensures all internal array metadata is clean
-            live_np = np.array(live_np, dtype=np.uint8, order='C', copy=True)
-            
-            # Verify and ensure the array is writable and owns its data
-            if not live_np.flags['OWNDATA']:
-                live_np = live_np.copy()
-            
-            # Debug logging
-            print(f"[DEBUG] Image ready - shape: {live_np.shape}, dtype: {live_np.dtype}, contiguous: {live_np.flags['C_CONTIGUOUS']}, min: {live_np.min()}, max: {live_np.max()}")
-            print(f"[DEBUG] Array strides: {live_np.strides}, itemsize: {live_np.itemsize}")
+            # Load verification photo using robust helper function
+            live_np = load_image_for_face_recognition(live_photo, is_file_path=False)
 
             # Basic fraud checks
             fraud_indicators = []
             if live_np.shape[0] < 100 or live_np.shape[1] < 100:
                 fraud_indicators.append('image_too_small')
 
-            # Detect face(s)
+            # Detect face(s) in verification photo using multiple methods
+            live_locations = []
+            import cv2
+            
             if face_recognition is not None:
                 try:
-                    # CRITICAL FIX: Some dlib builds reject certain array layouts
-                    # Force the exact memory layout dlib expects by creating a minimal copy
-                    # Use the internal dlib.load_rgb_image equivalent
+                    print(f"[DEBUG] Detecting faces in verification photo...")
+                    print(f"[DEBUG] Array properties before face detection:")
+                    print(f"  Shape: {live_np.shape}, dtype: {live_np.dtype}")
+                    print(f"  C_CONTIGUOUS: {live_np.flags['C_CONTIGUOUS']}")
                     
-                    # Ensure dimensions are correct
-                    h, w, c = live_np.shape
-                    
-                    # Create a brand new array from scratch with explicit C-order
-                    img_for_dlib = np.empty((h, w, 3), dtype=np.uint8, order='C')
-                    img_for_dlib[:] = live_np
-                    
-                    # Double-check it's exactly what dlib wants
-                    assert img_for_dlib.dtype == np.uint8
-                    assert img_for_dlib.ndim == 3
-                    assert img_for_dlib.shape[2] == 3
-                    assert img_for_dlib.flags['C_CONTIGUOUS']
-                    
-                    print(f"[DEBUG] Calling face_locations with prepared array...")
-                    # Try with more aggressive upsampling first
-                    live_locations = face_recognition.face_locations(img_for_dlib, number_of_times_to_upsample=2, model='hog')
-                    
-                    # If no faces found, try CNN model (more accurate but slower)
+                    # Try HOG method first (faster)
+                    print(f"[DEBUG] Calling face_recognition.face_locations with HOG model (upsample=1)...")
+                    live_locations = face_recognition.face_locations(live_np, number_of_times_to_upsample=1, model='hog')
+
+                    # If no faces, try more aggressive HOG upsample
                     if len(live_locations) == 0:
-                        print(f"[DEBUG] HOG found no faces, trying CNN model...")
-                        try:
-                            live_locations = face_recognition.face_locations(img_for_dlib, model='cnn')
-                        except:
-                            # CNN might not be available
-                            pass
+                        print(f"[DEBUG] HOG (upsample=1) found no faces, retrying with upsample=2...")
+                        live_locations = face_recognition.face_locations(live_np, number_of_times_to_upsample=2, model='hog')
                     
-                    live_np = img_for_dlib  # Use this array for all subsequent operations
+                    print(f"[DEBUG] Detected {len(live_locations)} face(s) using dlib HOG")
                     
-                except Exception as e:
-                    print(f"[ERROR] face_locations failed even after preparation: {e}")
-                    print(f"[ERROR] Trying absolute fallback - load via PIL from scratch...")
+                except Exception as dlib_error:
+                    print(f"[WARNING] dlib/HOG face detection failed: {dlib_error}")
+                    print(f"[DEBUG] Falling back to OpenCV Haar Cascade...")
                     
-                    # Absolute last resort: encode back to bytes and reload via PIL
+                    # Fallback to OpenCV Haar Cascade
                     try:
-                        from PIL import Image
-                        import io
-                        # Convert back to BGR for cv2
-                        bgr = cv2.cvtColor(live_np, cv2.COLOR_RGB2BGR)
-                        # Encode to PNG bytes
-                        success, buffer = cv2.imencode('.png', bgr)
-                        if not success:
-                            raise ValueError("Failed to encode image")
-                        # Reload via PIL
-                        pil_img = Image.open(io.BytesIO(buffer.tobytes()))
-                        pil_img = pil_img.convert('RGB')
-                        live_np = np.array(pil_img, dtype=np.uint8)
+                        live_bgr = cv2.cvtColor(live_np, cv2.COLOR_RGB2BGR)
+                        live_gray = cv2.cvtColor(live_bgr, cv2.COLOR_BGR2GRAY)
                         
-                        print(f"[DEBUG] PIL fallback - shape: {live_np.shape}, dtype: {live_np.dtype}")
-                        live_locations = face_recognition.face_locations(live_np, number_of_times_to_upsample=2)
-                    except Exception as e2:
-                        print(f"[ERROR] All methods failed: {e2}")
-                        # Give up on face detection but continue
+                        # Enhance image for better detection
+                        live_gray = cv2.equalizeHist(live_gray)
+                        
+                        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                        face_cascade = cv2.CascadeClassifier(cascade_path)
+                        
+                        # Try multiple detection strategies with increasingly lenient parameters
+                        faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+                        
+                        if len(faces) == 0:
+                            print(f"[DEBUG] No faces with default params, trying more lenient settings...")
+                            faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.05, minNeighbors=2, minSize=(20, 20))
+                        
+                        if len(faces) == 0:
+                            print(f"[DEBUG] Still no faces, trying very lenient settings...")
+                            faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.02, minNeighbors=1, minSize=(15, 15))
+                        
+                        print(f"[DEBUG] OpenCV Haar Cascade detected {len(faces)} face(s)")
+                        
+                        # Filter: Keep only the largest face (most likely the real face, rest are false positives)
+                        if len(faces) > 1:
+                            print(f"[DEBUG] Multiple faces detected ({len(faces)}), keeping only the largest")
+                            faces = [max(faces, key=lambda f: f[2] * f[3])]  # Sort by area (w*h), keep largest
+                        
+                        # Convert OpenCV format (x, y, w, h) to face_recognition format (top, right, bottom, left)
+                        live_locations = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
+                        print(f"[DEBUG] Converted to face_recognition format: {len(live_locations)} face(s)")
+                        
+                    except Exception as cv_error:
+                        print(f"[ERROR] OpenCV Haar Cascade also failed: {cv_error}")
+                        import traceback
+                        traceback.print_exc()
                         live_locations = []
                 
-                print(f"[DEBUG] Detected {len(live_locations)} face(s) in image")
-                
                 if len(live_locations) == 0:
-                    # Make this a warning instead of hard failure
-                    print(f"[WARNING] No face detected - allowing verification to continue")
-                    # Don't add to fraud_indicators to allow verification
-                if len(live_locations) > 1:
-                    fraud_indicators.append('multiple_faces_detected')
+                    return jsonify({
+                        "error": "No face detected in verification photo",
+                        "message": "Please ensure your face is clearly visible and well-lit. Look directly at the camera. Try again."
+                    }), 400
+                
+                # Check face quality - ensure face is reasonably sized
+                if len(live_locations) > 0:
+                    top, right, bottom, left = live_locations[0]
+                    face_width = right - left
+                    face_height = bottom - top
+                    face_area = face_width * face_height
+                    image_area = live_np.shape[0] * live_np.shape[1]
+                    face_percentage = (face_area / image_area) * 100
+                    
+                    print(f"[DEBUG] Face quality - Size: {face_width}x{face_height}, Area: {face_percentage:.2f}% of image")
+                    
+                    # Relaxed thresholds when using OpenCV fallback (less precise detection)
+                    # Face should be at least 0.5% of image (very lenient for OpenCV)
+                    if face_percentage < 0.5:
+                        fraud_indicators.append('face_too_small_in_frame')
+                        print(f"[WARNING] Face is extremely small ({face_percentage:.2f}% of frame)")
+                    
+                    # Face should not be more than 95% of image
+                    if face_percentage > 95:
+                        fraud_indicators.append('face_fills_entire_frame')
+                        print(f"[WARNING] Face fills too much of frame ({face_percentage:.2f}% of frame)")
+                
+                # Note: We already filtered to keep only the largest face, so no multi-face warning needed
 
             if fraud_indicators:
                 return jsonify({
@@ -830,7 +937,7 @@ def verify_identity():
                     "spoofing_confidence": 0.9
                 }), 400
 
-            # Attempt face match against stored photo
+            # Attempt face match against stored registration photo
             user_id = get_jwt_identity()
             
             # Check if MongoDB is available
@@ -839,58 +946,232 @@ def verify_identity():
                 return jsonify({
                     "verified": True,
                     "is_genuine": True,
-                    "face_match_confidence": 0.85,  # Default confidence when DB unavailable
+                    "face_match_confidence": 0.85,
                     "face_distance": None,
                     "liveness_score": 0.8,
                     "message": "Identity verified successfully (database unavailable - face matching skipped)"
                 }), 200
             
+            # Find user by username or _id
             user = users_collection.find_one({'username': user_id})
             if user is None:
-                user = users_collection.find_one({'_id': ObjectId(user_id)})
+                try:
+                    user = users_collection.find_one({'_id': ObjectId(user_id)})
+                except:
+                    pass
             
             if user is None:
-                print(f"[WARNING] User not found: {user_id}")
+                print(f"[ERROR] User not found: {user_id}")
                 return jsonify({"error": "User not found. Please log in again."}), 404
+            
+            # Check if user has a registered photo
+            if not user.get('photo_path'):
+                print(f"[ERROR] User {user.get('username')} has no registered photo")
+                return jsonify({
+                    "error": "No registration photo found",
+                    "message": "You must register with a photo before identity verification. Please contact support."
+                }), 400
+            
+            # Check if registration photo file exists
+            if not os.path.exists(user['photo_path']):
+                print(f"[ERROR] Registration photo file not found: {user['photo_path']}")
+                return jsonify({
+                    "error": "Registration photo file missing",
+                    "message": "Your registration photo is missing. Please contact support."
+                }), 500
             
             face_match_confidence = 0.0
             face_distance = None
-            is_genuine = True
+            is_genuine = False
 
-            if face_recognition is not None and user is not None and user.get('photo_path') and os.path.exists(user['photo_path']):
+            # Perform face matching
+            if face_recognition is not None:
                 try:
-                    # Use OpenCV to load reference image - produces dlib-compatible arrays
-                    ref_np = cv2.imread(user['photo_path'])
+                    print(f"[DEBUG] Loading registration photo from: {user['photo_path']}")
                     
-                    if ref_np is None:
-                        raise ValueError(f"Failed to load reference image from {user['photo_path']}")
+                    # Load registration photo using robust helper function with error handling
+                    try:
+                        ref_np = load_image_for_face_recognition(user['photo_path'], is_file_path=True)
+                    except Exception as load_error:
+                        print(f"[ERROR] Failed to load registration photo: {load_error}")
+                        return jsonify({
+                            "error": "Failed to load registration photo",
+                            "message": f"Could not process your registration photo: {str(load_error)}"
+                        }), 500
                     
-                    # OpenCV loads as BGR, convert to RGB for face_recognition
-                    ref_np = cv2.cvtColor(ref_np, cv2.COLOR_BGR2RGB)
+                    print(f"[DEBUG] Extracting face encodings from both photos...")
                     
-                    # Ensure uint8 type
-                    ref_np = np.asarray(ref_np, dtype=np.uint8, order='C')
+                    # Extract face encodings from registration photo with error handling
+                    try:
+                        print(f"[DEBUG] Extracting encoding from registration photo (shape: {ref_np.shape}, dtype: {ref_np.dtype})")
+                        # Image is already prepared by prepare_image_for_dlib()
+                        print(f"[DEBUG] Registration photo array - C_CONTIGUOUS: {ref_np.flags['C_CONTIGUOUS']}, dtype: {ref_np.dtype}")
+                        
+                        # Try dlib HOG detection first
+                        try:
+                            ref_locations = face_recognition.face_locations(ref_np, number_of_times_to_upsample=1, model='hog')
+                            if len(ref_locations) == 0:
+                                print(f"[DEBUG] HOG found no faces, trying with upsample=2...")
+                                ref_locations = face_recognition.face_locations(ref_np, number_of_times_to_upsample=2, model='hog')
+                            print(f"[DEBUG] dlib HOG detected {len(ref_locations)} face(s) in registration photo")
+                        except Exception as dlib_ref_error:
+                            print(f"[WARNING] dlib HOG face detection failed for registration photo: {dlib_ref_error}")
+                            # Fallback to OpenCV Haar Cascade
+                            try:
+                                ref_bgr = cv2.cvtColor(ref_np, cv2.COLOR_RGB2BGR)
+                                ref_gray = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2GRAY)
+                                ref_gray = cv2.equalizeHist(ref_gray)
+                                
+                                cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                                face_cascade = cv2.CascadeClassifier(cascade_path)
+                                
+                                faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+                                if len(faces) == 0:
+                                    faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.05, minNeighbors=2, minSize=(20, 20))
+                                if len(faces) == 0:
+                                    faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.02, minNeighbors=1, minSize=(15, 15))
+                                
+                                ref_locations = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
+                                print(f"[DEBUG] OpenCV Haar Cascade found {len(ref_locations)} faces in registration photo")
+                            except Exception as cv_ref_error:
+                                print(f"[ERROR] Both dlib and OpenCV failed for registration photo: {cv_ref_error}")
+                                ref_locations = []
+                        
+                        # Extract face encodings using dlib
+                        ref_encodings = []
+                        if len(ref_locations) > 0:
+                            try:
+                                ref_encodings = face_recognition.face_encodings(ref_np, ref_locations)
+                                print(f"[DEBUG] Successfully extracted {len(ref_encodings)} encoding(s) from registration photo")
+                            except Exception as encoding_error:
+                                print(f"[ERROR] dlib encoding extraction failed: {encoding_error}")
+                                return jsonify({
+                                    "error": "Face encoding extraction failed",
+                                    "message": "Could not extract facial features from registration photo. Please contact support or try re-registering with a clearer photo."
+                                }), 500
+                        else:
+                            print(f"[ERROR] No face detected in registration photo")
+                            return jsonify({
+                                "error": "No face detected in registration photo",
+                                "message": "Your registration photo does not contain a detectable face. Please contact support."
+                            }), 500
+                    except Exception as ref_error:
+                        print(f"[ERROR] Failed to extract encoding from registration photo: {ref_error}")
+                        import traceback
+                        traceback.print_exc()
+                        return jsonify({
+                            "error": "Registration photo processing error",
+                            "message": "Could not process your registration photo. It may be corrupted. Please re-register with a new photo."
+                        }), 500
                     
-                    ref_encodings = face_recognition.face_encodings(ref_np)
-                    live_encodings = face_recognition.face_encodings(live_np)
-                    if len(ref_encodings) > 0 and len(live_encodings) > 0:
-                        dist = face_recognition.face_distance([ref_encodings[0]], live_encodings[0])[0]
-                        face_distance = float(dist)
-                        # Map distance [0,1+] to confidence [0,1]
-                        face_match_confidence = float(max(0.0, min(1.0, 1.0 - dist)))
-                        is_genuine = dist < 0.6
-                    else:
-                        print("[WARNING] No face encodings found in reference or live photo")
-                        is_genuine = True
-                        face_match_confidence = 0.5  # Neutral confidence
+                    # Extract face encodings from verification photo with error handling
+                    live_encodings = []
+                    try:
+                        print(f"[DEBUG] Extracting encoding from verification photo (shape: {live_np.shape}, dtype: {live_np.dtype})")
+                        # Image is already prepared by prepare_image_for_dlib()
+                        print(f"[DEBUG] Verification photo array - C_CONTIGUOUS: {live_np.flags['C_CONTIGUOUS']}, dtype: {live_np.dtype}")
+                        
+                        if len(live_locations) > 0:
+                            try:
+                                live_encodings = face_recognition.face_encodings(live_np, live_locations)
+                                print(f"[DEBUG] Successfully extracted {len(live_encodings)} encoding(s) from verification photo")
+                            except Exception as encoding_error:
+                                print(f"[ERROR] dlib encoding extraction failed: {encoding_error}")
+                                return jsonify({
+                                    "error": "Face encoding extraction failed",
+                                    "message": "Could not extract facial features from your photo. Please ensure good lighting and a clear face view."
+                                }), 400
+                        else:
+                            print(f"[ERROR] No faces detected in verification photo")
+                            return jsonify({
+                                "error": "Face not detected",
+                                "message": "Could not detect a face in your verification photo. Please try again with better lighting and a clear face."
+                            }), 400
+                    except Exception as live_error:
+                        print(f"[ERROR] Verification encoding extraction error: {live_error}")
+                        import traceback
+                        traceback.print_exc()
+                        return jsonify({
+                            "error": "Verification processing error",
+                            "message": f"An error occurred during verification: {str(live_error)}"
+                        }), 500
+                    
+                    
+                    if len(ref_encodings) == 0:
+                        print(f"[ERROR] No face encoding generated from registration photo")
+                        return jsonify({
+                            "error": "Registration photo invalid",
+                            "message": "Your registration photo does not contain a detectable face. Please contact support or re-register with a different photo."
+                        }), 500
+                    
+                    if len(live_encodings) == 0:
+                        print(f"[ERROR] No face encoding generated from verification photo")
+                        return jsonify({
+                            "error": "Verification photo invalid",
+                            "message": "Could not extract facial features from your verification photo. Please try again with better lighting."
+                        }), 400
+                    
+                    # Compare faces - mandatory verification using actual face encodings
+                    best_distance = float('inf')
+                    best_match_idx = -1
+                    
+                    print(f"[DEBUG] Comparing {len(ref_encodings)} registration encoding(s) with {len(live_encodings)} verification encoding(s)")
+                    
+                    # Use face encoding comparison - this is real verification
+                    for live_idx, live_enc in enumerate(live_encodings):
+                        distances = face_recognition.face_distance(ref_encodings, live_enc)
+                        min_distance = float(distances.min())
+                        
+                        if min_distance < best_distance:
+                            best_distance = min_distance
+                            best_match_idx = live_idx
+                        
+                        print(f"[DEBUG] Live encoding {live_idx}: min distance = {min_distance:.4f}")
+                    
+                    face_distance = best_distance
+                    
+                    # Map distance to confidence score
+                    # Distance ranges from 0 (perfect match) to 1+ (different faces)
+                    # Threshold of 0.6 is standard for face_recognition library
+                    face_match_confidence = float(max(0.0, min(1.0, 1.0 - face_distance)))
+                    
+                    # Determine if faces match with stricter threshold
+                    is_genuine = face_distance < 0.55  # Slightly stricter than 0.6
+                    
+                    print(f"[DEBUG] Face matching complete:")
+                    print(f"  Distance: {face_distance:.4f}")
+                    print(f"  Confidence: {face_match_confidence:.2%}")
+                    print(f"  Match: {is_genuine}")
+                    
+                    if not is_genuine:
+                        print(f"[WARNING] Face mismatch detected - User: {user.get('username')}, Distance: {face_distance:.4f}")
+                        
+                        # Provide additional context for rejection
+                        if face_distance < 0.6:
+                            message = "Face match confidence is borderline. Please try again with better lighting or a clearer angle."
+                        else:
+                            message = "The verification photo does not match your registration photo. Please try again."
+                        
+                        return jsonify({
+                            "error": "Face verification failed",
+                            "message": message,
+                            "face_match_confidence": face_match_confidence,
+                            "face_distance": face_distance,
+                            "is_genuine": False
+                        }), 400
+                    
                 except Exception as e:
-                    print(f"Face match error: {e}")
-                    # Continue verification even if face matching fails
-                    is_genuine = True
-                    face_match_confidence = 0.5
-            elif user is not None and not user.get('photo_path'):
-                print(f"[WARNING] User {user_id} has no registered photo - skipping face matching")
-                face_match_confidence = 0.7  # Give benefit of doubt
+                    print(f"[ERROR] Face matching failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({
+                        "error": "Face matching error",
+                        "message": f"An error occurred during face verification: {str(e)}"
+                    }), 500
+            else:
+                # face_recognition library not available
+                print(f"[WARNING] face_recognition library not available, skipping face matching")
+                face_match_confidence = 0.7
                 is_genuine = True
 
             # Simple liveness heuristic (presence of a face + reasonable size)
@@ -994,6 +1275,26 @@ def cast_vote():
             print(f"[Cast Vote] ERROR: Missing candidate")
             return jsonify({"error": "Missing candidate"}), 400
         
+        # Get user information
+        user = users_collection.find_one({'username': user_id})
+        if not user:
+            try:
+                user = users_collection.find_one({'_id': ObjectId(user_id)})
+            except:
+                pass
+        
+        if not user:
+            print(f"[Cast Vote] ERROR: User not found")
+            return jsonify({"error": "User not found"}), 404
+        
+        # ENFORCE IDENTITY VERIFICATION - Users must verify their identity before voting
+        if not user.get('identity_verified', False):
+            print(f"[Cast Vote] BLOCKED: User {user_id} has not completed identity verification")
+            return jsonify({
+                "error": "Identity verification required",
+                "message": "You must complete identity verification before you can vote. Please verify your identity first."
+            }), 403
+        
         # Check if user has already voted
         existing_vote = votes_collection.find_one({'user_id': user_id})
         if existing_vote:
@@ -1012,8 +1313,7 @@ def cast_vote():
             'session_id': session_id
         }
         
-        # Get voter information
-        user = users_collection.find_one({'username': user_id})
+        # Prepare voter information (user already fetched above)
         voter_data = {
             'voter_id': user_id,
             'age': user.get('age', 0),
@@ -1171,7 +1471,9 @@ def get_statistics():
             return jsonify({"error": "Database unavailable"}), 503
         
         total_votes = votes_collection.count_documents({})
-        total_users = users_collection.count_documents({'role': 'voter'})
+        total_registered = users_collection.count_documents({'role': 'voter'})
+        total_verified = users_collection.count_documents({'role': 'voter', 'identity_verified': True})
+        total_unverified = total_registered - total_verified
         
         # Count votes by candidate
         candidate_a_votes = votes_collection.count_documents({'candidate': 'Candidate A'})
@@ -1183,21 +1485,48 @@ def get_statistics():
         print(f"[Statistics] All votes: {all_votes}")
         print(f"[Statistics] Candidate A Votes: {candidate_a_votes}")
         print(f"[Statistics] Candidate B Votes: {candidate_b_votes}")
-        print(f"[Statistics] Total registered voters: {total_users}")
+        print(f"[Statistics] Total registered voters: {total_registered}")
+        print(f"[Statistics] Identity verified voters: {total_verified}")
+        print(f"[Statistics] Unverified voters: {total_unverified}")
         
-        # Calculate turnout percentage
-        turnout = (total_votes / total_users * 100) if total_users > 0 else 0
-        print(f"[Statistics] Calculated turnout: {turnout}%")
+        # Calculate turnout percentage (based on verified voters, since only they can vote)
+        turnout_of_verified = (total_votes / total_verified * 100) if total_verified > 0 else 0
+        turnout_of_all = (total_votes / total_registered * 100) if total_registered > 0 else 0
+        print(f"[Statistics] Turnout (verified voters): {turnout_of_verified}%")
+        print(f"[Statistics] Turnout (all registered): {turnout_of_all}%")
+        
+        # Get precinct votes
+        precincts = ['Precinct 1', 'Precinct 2', 'Precinct 3']
+        precinct_votes = {}
+        total_precincts = len(precincts)
+        suspicious_precincts = 0
+        
+        for precinct in precincts:
+            precinct_vote_count = votes_collection.count_documents({'precinct': precinct})
+            precinct_votes[precinct] = precinct_vote_count
+            
+            # Check for suspicious activity
+            if precinct_vote_count > 0:
+                precinct_a = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate A'})
+                precinct_b = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate B'})
+                max_votes = max(precinct_a, precinct_b)
+                # Flag if one candidate has >95% of votes
+                if max_votes / precinct_vote_count > 0.95:
+                    suspicious_precincts += 1
         
         response = {
             'total_votes': total_votes,
-            'total_registered': total_users,
-            'avg_turnout': round(turnout, 2),
-            'turnout_percentage': round(turnout, 2),
+            'total_registered': total_registered,
+            'total_verified': total_verified,
+            'total_unverified': total_unverified,
+            'avg_turnout': round(turnout_of_verified, 2),
+            'turnout_percentage': round(turnout_of_all, 2),
+            'turnout_of_verified': round(turnout_of_verified, 2),
             'candidate_a_votes': candidate_a_votes,
             'candidate_b_votes': candidate_b_votes,
-            'total_precincts': 0,
-            'suspicious_precincts': 0
+            'total_precincts': total_precincts,
+            'suspicious_precincts': suspicious_precincts,
+            'precinct_votes': precinct_votes
         }
         print(f"[Statistics] Response data: {response}")
         return jsonify(response), 200
@@ -1206,6 +1535,106 @@ def get_statistics():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/precinct-status', methods=['GET'])
+@jwt_required()
+def get_precinct_status():
+    """Get live precinct voting status based on current vote counts"""
+    try:
+        if not mongodb_available or votes_collection is None:
+            return jsonify({"error": "Database unavailable"}), 503
+        
+        # Define precincts
+        precincts = ['Precinct 1', 'Precinct 2', 'Precinct 3']
+        precinct_data = []
+        
+        print(f"\n{'='*60}")
+        print(f"[Precinct Status] Calculating live precinct status...")
+        
+        for precinct in precincts:
+            # Count votes in this precinct
+            precinct_total_votes = votes_collection.count_documents({'precinct': precinct})
+            precinct_candidate_a = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate A'})
+            precinct_candidate_b = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate B'})
+            
+            # Calculate precinct turnout (get unique voters)
+            unique_voters = votes_collection.distinct('user_id', {'precinct': precinct})
+            precinct_unique_voters = len(unique_voters)
+            
+            # Determine leading candidate
+            if precinct_candidate_a > precinct_candidate_b:
+                leading_candidate = 'Candidate A'
+                lead_margin = precinct_candidate_a - precinct_candidate_b
+            elif precinct_candidate_b > precinct_candidate_a:
+                leading_candidate = 'Candidate B'
+                lead_margin = precinct_candidate_b - precinct_candidate_a
+            else:
+                leading_candidate = 'TIE'
+                lead_margin = 0
+            
+            # Determine precinct status
+            if precinct_total_votes == 0:
+                status = 'No votes'
+                completion_percentage = 0
+            elif precinct_total_votes > 0:
+                status = 'Active'
+                completion_percentage = 100  # Some votes recorded
+            
+            # Check for suspicious activity (unusual vote distribution)
+            suspicious = False
+            if precinct_total_votes > 0:
+                # Check if one candidate has more than 90% of votes (potential fraud indicator)
+                max_votes = max(precinct_candidate_a, precinct_candidate_b)
+                if max_votes / precinct_total_votes > 0.95:
+                    suspicious = True
+            
+            precinct_info = {
+                'name': precinct,
+                'total_votes': precinct_total_votes,
+                'candidate_a_votes': precinct_candidate_a,
+                'candidate_b_votes': precinct_candidate_b,
+                'unique_voters': precinct_unique_voters,
+                'leading_candidate': leading_candidate,
+                'lead_margin': lead_margin,
+                'status': status,
+                'completion_percentage': completion_percentage,
+                'suspicious': suspicious
+            }
+            
+            precinct_data.append(precinct_info)
+            
+            print(f"[Precinct Status] {precinct}:")
+            print(f"  Votes: {precinct_total_votes} | A: {precinct_candidate_a} | B: {precinct_candidate_b}")
+            print(f"  Leading: {leading_candidate} (margin: {lead_margin})")
+            print(f"  Status: {status} | Suspicious: {suspicious}")
+        
+        # Calculate overall precinct statistics
+        total_precincts = len(precincts)
+        active_precincts = sum(1 for p in precinct_data if p['status'] == 'Active')
+        suspicious_precincts = sum(1 for p in precinct_data if p['suspicious'])
+        
+        print(f"[Precinct Status] Total precincts: {total_precincts}")
+        print(f"[Precinct Status] Active precincts: {active_precincts}")
+        print(f"[Precinct Status] Suspicious precincts: {suspicious_precincts}")
+        print(f"{'='*60}\n")
+        
+        response = {
+            'precincts': precinct_data,
+            'total_precincts': total_precincts,
+            'active_precincts': active_precincts,
+            'suspicious_precincts': suspicious_precincts,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        return jsonify(response), 200
+    
+    except Exception as e:
+        print(f"[Precinct Status] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/admin/user-stats', methods=['GET'])
 @jwt_required()

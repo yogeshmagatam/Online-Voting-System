@@ -331,15 +331,28 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     ],
   };
 
-  const suspiciousPrecincts = 1200;
-  const totalPrecincts = 3000;
-  const normalPrecincts = 1800;
+  // Use live data from statistics
+  const totalPrecincts = statistics.total_precincts || 0;
+  const suspiciousPrecincts = statistics.suspicious_precincts || 0;
+  const normalPrecincts = totalPrecincts - suspiciousPrecincts;
 
-  // Breakdown by candidate
-  const candidateASuspicious = 350;
-  const candidateBSuspicious = 850;
-  const candidateANormal = 650;
-  const candidateBNormal = 1150;
+  // Breakdown by candidate - distribute votes proportionally across normal/suspicious
+  const totalCandidateAVotes = candidateAVotes || 0;
+  const totalCandidateBVotes = candidateBVotes || 0;
+  const totalAllVotes = totalCandidateAVotes + totalCandidateBVotes;
+  
+  // Estimate suspicious votes (assume 30% of votes from suspicious precincts)
+  const suspiciousVotesEstimate = totalAllVotes > 0 && totalPrecincts > 0 
+    ? Math.round((suspiciousPrecincts / totalPrecincts) * totalAllVotes * 0.3)
+    : 0;
+  const normalVotesEstimate = totalAllVotes - suspiciousVotesEstimate;
+  
+  // Distribute by candidate proportionally
+  const candidateARatio = totalAllVotes > 0 ? totalCandidateAVotes / totalAllVotes : 0.5;
+  const candidateASuspicious = Math.round(suspiciousVotesEstimate * candidateARatio);
+  const candidateBSuspicious = suspiciousVotesEstimate - candidateASuspicious;
+  const candidateANormal = Math.round(normalVotesEstimate * candidateARatio);
+  const candidateBNormal = normalVotesEstimate - candidateANormal;
 
   const precinctChartData = {
     labels: ['Candidate A - Suspicious', 'Candidate B - Suspicious', 'Candidate A - Normal', 'Candidate B - Normal'],
