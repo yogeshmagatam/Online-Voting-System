@@ -22,6 +22,6 @@ df_final = pd.concat([df_new_legit, df_fraud]).sample(frac=1, random_state=42).r
 df_final.to_csv('voting_fraud_dataset.csv', index=False)
 
 print(f'CSV updated successfully!')
-print(f'Candidate A (legitimate/is_fraud=0): {len(df_new_legit)} votes')
-print(f'Candidate B (fraudulent/is_fraud=1): {len(df_fraud)} votes')
+print(f'Congress (legitimate/is_fraud=0): {len(df_new_legit)} votes')
+print(f'BJP (fraudulent/is_fraud=1): {len(df_fraud)} votes')
 print(f'Total: {len(df_final)} votes')
