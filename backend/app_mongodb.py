@@ -1245,7 +1245,7 @@ def verify_identity():
 def get_election_data():
     try:
         return jsonify({
-            'candidates': ['Candidate A', 'Candidate B'],
+            'candidates': ['Congress', 'BJP'],
             'precincts': ['Precinct 1', 'Precinct 2', 'Precinct 3']
         }), 200
     except Exception as e:
@@ -1475,16 +1475,16 @@ def get_statistics():
         total_verified = users_collection.count_documents({'role': 'voter', 'identity_verified': True})
         total_unverified = total_registered - total_verified
         
-        # Count votes by candidate
-        candidate_a_votes = votes_collection.count_documents({'candidate': 'Candidate A'})
-        candidate_b_votes = votes_collection.count_documents({'candidate': 'Candidate B'})
+        # Count votes by candidate (handle both old and new names for backward compatibility)
+        candidate_a_votes = votes_collection.count_documents({'candidate': {'$in': ['Congress', 'Candidate A']}})
+        candidate_b_votes = votes_collection.count_documents({'candidate': {'$in': ['BJP', 'Candidate B']}})
         
         # Get all votes for debugging
         all_votes = list(votes_collection.find({}, {'_id': 0, 'candidate': 1}))
         print(f"[Statistics] Total votes in DB: {total_votes}")
         print(f"[Statistics] All votes: {all_votes}")
-        print(f"[Statistics] Candidate A Votes: {candidate_a_votes}")
-        print(f"[Statistics] Candidate B Votes: {candidate_b_votes}")
+        print(f"[Statistics] Congress (incl. old 'Candidate A') Votes: {candidate_a_votes}")
+        print(f"[Statistics] BJP (incl. old 'Candidate B') Votes: {candidate_b_votes}")
         print(f"[Statistics] Total registered voters: {total_registered}")
         print(f"[Statistics] Identity verified voters: {total_verified}")
         print(f"[Statistics] Unverified voters: {total_unverified}")
@@ -1523,11 +1523,11 @@ def get_statistics():
             
             # Check for suspicious activity in live votes
             if precinct_vote_count > 0:
-                precinct_a = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate A'})
-                precinct_b = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate B'})
+                precinct_a = votes_collection.count_documents({'precinct': precinct, 'candidate': {'$in': ['Congress', 'Candidate A']}})
+                precinct_b = votes_collection.count_documents({'precinct': precinct, 'candidate': {'$in': ['BJP', 'Candidate B']}})
                 max_votes = max(precinct_a, precinct_b)
                 ratio = max_votes / precinct_vote_count if precinct_vote_count > 0 else 0
-                print(f"  → A: {precinct_a}, B: {precinct_b}, Max ratio: {ratio:.2%}")
+                print(f"  → Congress: {precinct_a}, BJP: {precinct_b}, Max ratio: {ratio:.2%}")
                 # Flag if one candidate has >95% of votes
                 if ratio > 0.95:
                     live_suspicious_precincts += 1
@@ -1582,8 +1582,8 @@ def get_precinct_status():
         for precinct in precincts:
             # Count votes in this precinct
             precinct_total_votes = votes_collection.count_documents({'precinct': precinct})
-            precinct_candidate_a = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate A'})
-            precinct_candidate_b = votes_collection.count_documents({'precinct': precinct, 'candidate': 'Candidate B'})
+            precinct_candidate_a = votes_collection.count_documents({'precinct': precinct, 'candidate': {'$in': ['Congress', 'Candidate A']}})
+            precinct_candidate_b = votes_collection.count_documents({'precinct': precinct, 'candidate': {'$in': ['BJP', 'Candidate B']}})
             
             # Calculate precinct turnout (get unique voters)
             unique_voters = votes_collection.distinct('user_id', {'precinct': precinct})
@@ -1591,10 +1591,10 @@ def get_precinct_status():
             
             # Determine leading candidate
             if precinct_candidate_a > precinct_candidate_b:
-                leading_candidate = 'Candidate A'
+                leading_candidate = 'Congress'
                 lead_margin = precinct_candidate_a - precinct_candidate_b
             elif precinct_candidate_b > precinct_candidate_a:
-                leading_candidate = 'Candidate B'
+                leading_candidate = 'BJP'
                 lead_margin = precinct_candidate_b - precinct_candidate_a
             else:
                 leading_candidate = 'TIE'

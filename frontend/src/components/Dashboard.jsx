@@ -162,7 +162,7 @@ function Dashboard({ token, userRole, onLogout }) {
 
   // Prepare chart data
   const votesChartData = {
-    labels: ['Candidate A', 'Candidate B'],
+    labels: ['Congress', 'BJP'],
     datasets: [
       {
         label: 'Votes',
@@ -248,7 +248,7 @@ function Dashboard({ token, userRole, onLogout }) {
             <h2>Add Election Data</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="votes_candidate_a">Votes for Candidate A</label>
+                <label htmlFor="votes_candidate_a">Votes for Congress</label>
                 <input
                   type="number"
                   className="form-control"
@@ -260,7 +260,7 @@ function Dashboard({ token, userRole, onLogout }) {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="votes_candidate_b">Votes for Candidate B</label>
+                <label htmlFor="votes_candidate_b">Votes for BJP</label>
                 <input
                   type="number"
                   className="form-control"
@@ -319,8 +319,8 @@ function Dashboard({ token, userRole, onLogout }) {
               <thead>
                 <tr>
                   <th>Precinct</th>
-                  <th>Candidate A</th>
-                  <th>Candidate B</th>
+                  <th>Congress</th>
+                  <th>BJP</th>
                   <th>Registered Voters</th>
                   <th>Turnout %</th>
                   <th>Status</th>

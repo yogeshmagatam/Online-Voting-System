@@ -297,11 +297,11 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   let marginVotes = 0;
 
   if (candidateAVotes > candidateBVotes) {
-    winnerLabel = 'Candidate A';
+    winnerLabel = 'Congress';
     winnerVotes = candidateAVotes;
     marginVotes = candidateAVotes - candidateBVotes;
   } else if (candidateBVotes > candidateAVotes) {
-    winnerLabel = 'Candidate B';
+    winnerLabel = 'BJP';
     winnerVotes = candidateBVotes;
     marginVotes = candidateBVotes - candidateAVotes;
   }
@@ -312,7 +312,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const totalVotesStat = (datasetSummary?.total_rows || 0) + (statistics.total_votes || 0);
 
-  const candidateLabels = ['Candidate A', 'Candidate B'];
+  const candidateLabels = ['Congress', 'BJP'];
 
   const votesChartData = {
     labels: candidateLabels,
@@ -357,7 +357,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const candidateBNormal = normalVotesEstimate - candidateANormal;
 
   const precinctChartData = {
-    labels: ['Candidate A - Suspicious', 'Candidate B - Suspicious', 'Candidate A - Normal', 'Candidate B - Normal'],
+    labels: ['Congress - Suspicious', 'BJP - Suspicious', 'Congress - Normal', 'BJP - Normal'],
     datasets: [
       {
         label: 'Precinct Votes',
@@ -459,7 +459,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
               <div className="alert alert-info" style={{ marginBottom: '10px' }}>
                 {useDatasetOutcome 
                   ? 'Combined results from voting_fraud_dataset.csv and live votes' 
-                  : 'Showing live votes (Candidate A vs Candidate B)'}
+                  : 'Showing live votes (Congress vs BJP)'}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
                 <div className="stat-card" style={{ flex: '1 1 240px', background: '#fff7ec' }}>
