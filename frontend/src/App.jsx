@@ -7,7 +7,6 @@ import RegisterAdmin from './components/RegisterAdmin.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import VoterDashboard from './components/VoterDashboard.jsx';
-import RoleProtectedRoute from './components/RoleProtectedRoute.jsx';
 import Home from './components/public/Home.jsx';
 import Mission from './components/public/Mission.jsx';
 import Security from './components/public/Security.jsx';

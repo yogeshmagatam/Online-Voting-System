@@ -228,6 +228,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -259,6 +260,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const runAnalysis = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/analyze', {
