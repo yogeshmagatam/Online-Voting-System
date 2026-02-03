@@ -20,14 +20,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     total_attempts: 0
   });
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState({
-    precinct: '',
-    votes_candidate_a: '',
-    votes_candidate_b: '',
-    registered_voters: '',
-    turnout_percentage: '',
-    timestamp: new Date().toISOString()
-  });
   const [user, setUser] = useState(null);
   const [modelStatus, setModelStatus] = useState(null);
   const [datasetSummary, setDatasetSummary] = useState(null);
@@ -46,15 +38,11 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchActivityLogs = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/activity-logs`, {
+      await fetch(`${API_URL}/api/admin/activity-logs`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (response.ok) {
-        // const data = await response.json();
-        // setActivityLogs(data.slice(0, 50)); // Last 50 activities - removed unused state
-      }
     } catch (err) {
       console.error('Error fetching activity logs:', err);
     }
@@ -83,15 +71,11 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchIdentityVerifications = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/admin/identity-verifications`, {
+      await fetch(`${API_URL}/api/admin/identity-verifications`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (response.ok) {
-        // const data = await response.json();
-        // setIdentityVerifications(data.slice(0, 50)); // Last 50 verifications - removed unused state
-      }
     } catch (err) {
       console.error('Error fetching identity verifications:', err);
     }
@@ -203,61 +187,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     const intervalId = setInterval(refreshAll, 30000); // auto-refresh every 30s
     return () => clearInterval(intervalId);
   }, [refreshAll]);
-
-  // eslint-disable-next-line no-unused-vars
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${API_URL}/api/election-data`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add election data');
-      }
-
-      setFormData({
-        precinct: '',
-        votes_candidate_a: '',
-        votes_candidate_b: '',
-        registered_voters: '',
-        turnout_percentage: '',
-        timestamp: new Date().toISOString()
-      });
-
-      fetchData();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const runAnalysis = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to run analysis');
-      }
-
-      // const result = await response.json();
-      // setElectionData(result.data); // removed unused state
-      fetchData();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 import IdentityVerification from './IdentityVerification.jsx';
@@ -15,20 +15,12 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const [verified, setVerified] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchCandidates();
-    fetchPrecincts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       // Decode JWT to get user info (basic decoding without verification)
       const tokenParts = token.split('.');
       if (tokenParts.length === 3) {
         const payload = JSON.parse(atob(tokenParts[1]));
-        // setUser(payload); // removed unused state
         // Check if user is already verified
         setVerified(payload.verified || false);
       }
@@ -36,9 +28,9 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       console.error('Error fetching user data:', err);
     }
     setLoading(false);
-  };
+  }, [token]);
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/election-data`, {
         headers: {
@@ -53,9 +45,9 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     } catch (err) {
       console.error('Error fetching candidates:', err);
     }
-  };
+  }, [token]);
 
-  const fetchPrecincts = async () => {
+  const fetchPrecincts = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/election-data`, {
         headers: {
@@ -70,7 +62,13 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     } catch (err) {
       console.error('Error fetching precincts:', err);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchCandidates();
+    fetchPrecincts();
+  }, [fetchUserData, fetchCandidates, fetchPrecincts]);
 
   const handleVerifyIdentity = () => {
     setShowVerification(true);
