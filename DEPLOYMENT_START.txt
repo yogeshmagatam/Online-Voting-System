@@ -1,0 +1,69 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         🚀 ELECTION FRAUD DETECTION - RAILWAY DEPLOYMENT STARTED           ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+✅ Railway CLI is now installed and ready!
+
+DEPLOYMENT OPTIONS:
+════════════════════════════════════════════════════════════════════════════
+
+Option 1: AUTOMATED DEPLOYMENT (Recommended)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Run this PowerShell script from the project root:
+
+  .\backend\deploy-railway.ps1
+
+This will automatically:
+  ✓ Log you into Railway
+  ✓ Initialize the project
+  ✓ Deploy backend service
+  ✓ Generate secure keys
+  ✓ Configure environment variables
+  ✓ Add MongoDB
+  ✓ Get your backend URL
+  ✓ Save configuration
+
+Estimated time: 15 minutes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option 2: MANUAL DEPLOYMENT (More Control)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Follow the step-by-step guide:
+
+  Read: backend\RAILWAY_MANUAL_DEPLOY.md
+
+Then follow these commands:
+
+  1. Login to Railway:
+     npx railway login
+
+  2. Go to backend folder:
+     cd backend
+
+  3. Initialize project:
+     npx railway init --name "election-fraud-detection"
+
+  4. Deploy:
+     npx railway up
+
+  5. Add MongoDB in Railway Dashboard
+
+  6. Set environment variables
+
+  7. Get backend URL and update Vercel
+
+Estimated time: 30 minutes
+
+════════════════════════════════════════════════════════════════════════════
+
+WHICH OPTION DO YOU WANT?
+
+📝 Type your choice:
+  A) Run automated script (recommended for first-time)
+  B) Manual deployment (step-by-step control)
+  C) Read full guide first, then decide
+
+════════════════════════════════════════════════════════════════════════════
