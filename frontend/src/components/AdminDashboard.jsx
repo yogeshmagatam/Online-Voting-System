@@ -6,7 +6,6 @@ import { Pie } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility, onNavigateToRegister, onNavigateToLogin, onNavigateToRegisterAdmin }) {
-  const [electionData, setElectionData] = useState([]);
   const [statistics, setStatistics] = useState({
     total_precincts: 0,
     total_votes: 0,
@@ -19,7 +18,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     verified_voters: 0,
     total_attempts: 0
   });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     precinct: '',
@@ -53,8 +51,8 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         }
       });
       if (response.ok) {
-        const data = await response.json();
-        setActivityLogs(data.slice(0, 50)); // Last 50 activities
+        // const data = await response.json();
+        // setActivityLogs(data.slice(0, 50)); // Last 50 activities - removed unused state
       }
     } catch (err) {
       console.error('Error fetching activity logs:', err);
@@ -90,8 +88,8 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         }
       });
       if (response.ok) {
-        const data = await response.json();
-        setIdentityVerifications(data.slice(0, 50)); // Last 50 verifications
+        // const data = await response.json();
+        // setIdentityVerifications(data.slice(0, 50)); // Last 50 verifications - removed unused state
       }
     } catch (err) {
       console.error('Error fetching identity verifications:', err);
@@ -139,7 +137,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   };
 
   const fetchData = async () => {
-    setLoading(true);
+    // setLoading(true); // removed unused state
     try {
       const dataResponse = await fetch('http://localhost:5000/api/election-data', {
         headers: {
@@ -151,15 +149,15 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         throw new Error('Failed to fetch election data');
       }
 
-      const dataResult = await dataResponse.json();
+      // const dataResult = await dataResponse.json();
       // Handle both array and object responses
-      if (Array.isArray(dataResult)) {
-        setElectionData(dataResult);
-      } else if (dataResult.data && Array.isArray(dataResult.data)) {
-        setElectionData(dataResult.data);
-      } else {
-        setElectionData([]);
-      }
+      // if (Array.isArray(dataResult)) {
+      //   setElectionData(dataResult);
+      // } else if (dataResult.data && Array.isArray(dataResult.data)) {
+      //   setElectionData(dataResult.data);
+      // } else {
+      //   setElectionData([]);
+      // }
 
       const statsResponse = await fetch('http://localhost:5000/api/statistics', {
         headers: {
@@ -184,7 +182,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // setLoading(false); // removed unused state
     }
   };
 
@@ -204,20 +202,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     const intervalId = setInterval(refreshAll, 30000); // auto-refresh every 30s
     return () => clearInterval(intervalId);
   }, [refreshAll]);
-
-    if ((name === 'votes_candidate_a' || name === 'votes_candidate_b' || name === 'registered_voters') &&
-      formData.registered_voters && (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0) > 0) {
-      const totalVotes = (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0);
-      const registeredVoters = parseInt(formData.registered_voters) || 1;
-      const turnout = (totalVotes / registeredVoters) * 100;
-
-      setFormData({
-        ...formData,
-        [name]: value,
-        turnout_percentage: turnout.toFixed(2)
-      });
-    }
-  };
 
   // eslint-disable-next-line no-unused-vars
   const handleSubmit = async (e) => {
@@ -266,8 +250,8 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         throw new Error('Failed to run analysis');
       }
 
-      const result = await response.json();
-      setElectionData(result.data);
+      // const result = await response.json();
+      // setElectionData(result.data); // removed unused state
       fetchData();
     } catch (err) {
       setError(err.message);

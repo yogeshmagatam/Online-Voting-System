@@ -27,7 +27,7 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       const tokenParts = token.split('.');
       if (tokenParts.length === 3) {
         const payload = JSON.parse(atob(tokenParts[1]));
-        setUser(payload);
+        // setUser(payload); // removed unused state
         // Check if user is already verified
         setVerified(payload.verified || false);
       }
