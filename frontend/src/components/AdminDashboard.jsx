@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
@@ -6,7 +7,6 @@ import { Pie } from 'react-chartjs-2';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility, onNavigateToRegister, onNavigateToLogin, onNavigateToRegisterAdmin }) {
-  const [electionData, setElectionData] = useState([]);
   const [statistics, setStatistics] = useState({
     total_precincts: 0,
     total_votes: 0,
@@ -19,7 +19,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     verified_voters: 0,
     total_attempts: 0
   });
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     precinct: '',
@@ -47,14 +46,14 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchActivityLogs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/activity-logs', {
+      const response = await fetch(`${API_URL}/api/admin/activity-logs`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       if (response.ok) {
-        const data = await response.json();
-        setActivityLogs(data.slice(0, 50)); // Last 50 activities
+        // const data = await response.json();
+        // setActivityLogs(data.slice(0, 50)); // Last 50 activities - removed unused state
       }
     } catch (err) {
       console.error('Error fetching activity logs:', err);
@@ -65,7 +64,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchUserStats = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/user-stats', {
+      const response = await fetch(`${API_URL}/api/admin/user-stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -84,14 +83,14 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchIdentityVerifications = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/identity-verifications', {
+      const response = await fetch(`${API_URL}/api/admin/identity-verifications`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       if (response.ok) {
-        const data = await response.json();
-        setIdentityVerifications(data.slice(0, 50)); // Last 50 verifications
+        // const data = await response.json();
+        // setIdentityVerifications(data.slice(0, 50)); // Last 50 verifications - removed unused state
       }
     } catch (err) {
       console.error('Error fetching identity verifications:', err);
@@ -101,7 +100,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const fetchModelStatus = async () => {
     try {
       console.log('[Admin Dashboard] Fetching model status from /api/admin/model-status');
-      const response = await fetch('http://localhost:5000/api/admin/model-status', {
+      const response = await fetch(`${API_URL}/api/admin/model-status`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -120,7 +119,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchDatasetSummary = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/fraud-dataset-summary', {
+      const response = await fetch(`${API_URL}/api/admin/fraud-dataset-summary`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -139,9 +138,9 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   };
 
   const fetchData = async () => {
-    setLoading(true);
+    // setLoading(true); // removed unused state
     try {
-      const dataResponse = await fetch('http://localhost:5000/api/election-data', {
+      const dataResponse = await fetch(`${API_URL}/api/election-data`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -151,17 +150,17 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         throw new Error('Failed to fetch election data');
       }
 
-      const dataResult = await dataResponse.json();
+      // const dataResult = await dataResponse.json();
       // Handle both array and object responses
-      if (Array.isArray(dataResult)) {
-        setElectionData(dataResult);
-      } else if (dataResult.data && Array.isArray(dataResult.data)) {
-        setElectionData(dataResult.data);
-      } else {
-        setElectionData([]);
-      }
+      // if (Array.isArray(dataResult)) {
+      //   setElectionData(dataResult);
+      // } else if (dataResult.data && Array.isArray(dataResult.data)) {
+      //   setElectionData(dataResult.data);
+      // } else {
+      //   setElectionData([]);
+      // }
 
-      const statsResponse = await fetch('http://localhost:5000/api/statistics', {
+      const statsResponse = await fetch(`${API_URL}/api/statistics`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -184,7 +183,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      // setLoading(false); // removed unused state
     }
   };
 
@@ -205,25 +204,11 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     return () => clearInterval(intervalId);
   }, [refreshAll]);
 
-    if ((name === 'votes_candidate_a' || name === 'votes_candidate_b' || name === 'registered_voters') &&
-      formData.registered_voters && (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0) > 0) {
-      const totalVotes = (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0);
-      const registeredVoters = parseInt(formData.registered_voters) || 1;
-      const turnout = (totalVotes / registeredVoters) * 100;
-
-      setFormData({
-        ...formData,
-        [name]: value,
-        turnout_percentage: turnout.toFixed(2)
-      });
-    }
-  };
-
   // eslint-disable-next-line no-unused-vars
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/election-data', {
+      const response = await fetch(`${API_URL}/api/election-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -254,7 +239,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   // eslint-disable-next-line no-unused-vars
   const runAnalysis = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
+      const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,8 +251,8 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         throw new Error('Failed to run analysis');
       }
 
-      const result = await response.json();
-      setElectionData(result.data);
+      // const result = await response.json();
+      // setElectionData(result.data); // removed unused state
       fetchData();
     } catch (err) {
       setError(err.message);

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import API_URL from '../config.js';
 
 function IdentityVerification({ token, onVerificationComplete, onCancel }) {
   const videoRef = useRef(null);
@@ -155,7 +156,7 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
     setSuccess('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/verify-identity', {
+      const response = await fetch(`${API_URL}/api/verify-identity`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
@@ -32,7 +33,7 @@ function Dashboard({ token, userRole, onLogout }) {
     setLoading(true);
     try {
       // Fetch election data
-      const dataResponse = await fetch('http://localhost:5000/api/election-data', {
+      const dataResponse = await fetch(`${API_URL}/api/election-data`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -53,7 +54,7 @@ function Dashboard({ token, userRole, onLogout }) {
       }
       
       // Fetch statistics
-      const statsResponse = await fetch('http://localhost:5000/api/statistics', {
+      const statsResponse = await fetch(`${API_URL}/api/statistics`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -107,7 +108,7 @@ function Dashboard({ token, userRole, onLogout }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/election-data', {
+      const response = await fetch(`${API_URL}/api/election-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +141,7 @@ function Dashboard({ token, userRole, onLogout }) {
   // Run fraud detection analysis
   const runAnalysis = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
+      const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

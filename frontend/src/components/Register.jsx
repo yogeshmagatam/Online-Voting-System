@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 
 function Register({ onNavigateToLogin }) {
@@ -60,7 +61,7 @@ function Register({ onNavigateToLogin }) {
         photo: photoDataUrl
       };
 
-      const response = await fetch('http://localhost:5000/api/register/voter', {
+      const response = await fetch(`${API_URL}/api/register/voter`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
