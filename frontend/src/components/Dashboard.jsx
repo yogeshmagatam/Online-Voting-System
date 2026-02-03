@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, Title } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 
 // Register ChartJS components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, Title);
 
 function Dashboard({ token, userRole, onLogout }) {
   const [electionData, setElectionData] = useState([]);
@@ -29,7 +29,7 @@ function Dashboard({ token, userRole, onLogout }) {
   });
 
   // Fetch election data and statistics
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch election data
@@ -74,12 +74,11 @@ function Dashboard({ token, userRole, onLogout }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [fetchData]);
 
   // Handle form input changes
   const handleInputChange = (e) => {
