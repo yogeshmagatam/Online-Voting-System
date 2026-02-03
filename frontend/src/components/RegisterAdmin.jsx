@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout';
 
 export default function RegisterAdmin({ onNavigateToLogin }) {
@@ -61,7 +62,7 @@ export default function RegisterAdmin({ onNavigateToLogin }) {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/register/admin', {
+      const response = await fetch(`${API_URL}/api/register/admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password, captcha })

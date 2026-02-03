@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
@@ -45,7 +46,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchActivityLogs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/activity-logs', {
+      const response = await fetch(`${API_URL}/api/admin/activity-logs`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -63,7 +64,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchUserStats = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/user-stats', {
+      const response = await fetch(`${API_URL}/api/admin/user-stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -82,7 +83,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchIdentityVerifications = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/identity-verifications', {
+      const response = await fetch(`${API_URL}/api/admin/identity-verifications`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -99,7 +100,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const fetchModelStatus = async () => {
     try {
       console.log('[Admin Dashboard] Fetching model status from /api/admin/model-status');
-      const response = await fetch('http://localhost:5000/api/admin/model-status', {
+      const response = await fetch(`${API_URL}/api/admin/model-status`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -118,7 +119,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchDatasetSummary = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/fraud-dataset-summary', {
+      const response = await fetch(`${API_URL}/api/admin/fraud-dataset-summary`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -139,7 +140,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const fetchData = async () => {
     // setLoading(true); // removed unused state
     try {
-      const dataResponse = await fetch('http://localhost:5000/api/election-data', {
+      const dataResponse = await fetch(`${API_URL}/api/election-data`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -159,7 +160,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       //   setElectionData([]);
       // }
 
-      const statsResponse = await fetch('http://localhost:5000/api/statistics', {
+      const statsResponse = await fetch(`${API_URL}/api/statistics`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -207,7 +208,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/election-data', {
+      const response = await fetch(`${API_URL}/api/election-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +239,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   // eslint-disable-next-line no-unused-vars
   const runAnalysis = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
+      const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

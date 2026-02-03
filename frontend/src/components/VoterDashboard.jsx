@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 import IdentityVerification from './IdentityVerification.jsx';
 
@@ -39,7 +40,7 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchCandidates = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/election-data', {
+      const response = await fetch(`${API_URL}/api/election-data`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -56,7 +57,7 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
 
   const fetchPrecincts = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/election-data', {
+      const response = await fetch(`${API_URL}/api/election-data`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -109,7 +110,7 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         timestamp: new Date().toISOString()
       };
 
-      const response = await fetch('http://localhost:5000/api/cast-vote', {
+      const response = await fetch(`${API_URL}/api/cast-vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

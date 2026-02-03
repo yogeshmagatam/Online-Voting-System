@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_URL from '../config.js';
 import SiteLayout from './layout/SiteLayout.jsx';
 
 function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
@@ -27,7 +28,7 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
           throw new Error('Please enter both username and password');
         }
 
-        const response = await fetch('http://localhost:5000/api/login', {
+            const response = await fetch(`${API_URL}/api/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
           throw new Error('OTP must be exactly 4 digits (0-9 only)');
         }
 
-        const response = await fetch('http://localhost:5000/api/verify-otp', {
+            const response = await fetch(`${API_URL}/api/verify-otp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -121,7 +122,7 @@ function Login({ onLogin, onNavigateToRegister, onNavigateToHome }) {
     setResendInfo('');
     setError('');
     try {
-      const resp = await fetch('http://localhost:5000/api/resend-otp', {
+          const resp = await fetch(`${API_URL}/api/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
