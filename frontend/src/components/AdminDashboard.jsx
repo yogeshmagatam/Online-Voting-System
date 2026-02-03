@@ -30,8 +30,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     timestamp: new Date().toISOString()
   });
   const [user, setUser] = useState(null);
-  const [activityLogs, setActivityLogs] = useState([]);
-  const [identityVerifications, setIdentityVerifications] = useState([]);
   const [modelStatus, setModelStatus] = useState(null);
   const [datasetSummary, setDatasetSummary] = useState(null);
 
@@ -207,13 +205,6 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     return () => clearInterval(intervalId);
   }, [refreshAll]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-
     if ((name === 'votes_candidate_a' || name === 'votes_candidate_b' || name === 'registered_voters') &&
       formData.registered_voters && (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0) > 0) {
       const totalVotes = (parseInt(formData.votes_candidate_a) || 0) + (parseInt(formData.votes_candidate_b) || 0);
@@ -228,6 +219,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -259,6 +251,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const runAnalysis = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/analyze', {
@@ -336,7 +329,7 @@ function AdminDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
   // Use live data from statistics
   const totalPrecincts = statistics.total_precincts || 0;
   const suspiciousPrecincts = statistics.suspicious_precincts || 0;
-  const normalPrecincts = totalPrecincts - suspiciousPrecincts;
+  // const normalPrecincts = totalPrecincts - suspiciousPrecincts;
 
   // Breakdown by candidate - distribute votes proportionally across normal/suspicious
   const totalCandidateAVotes = candidateAVotes || 0;

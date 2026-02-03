@@ -1,0 +1,66 @@
+═══════════════════════════════════════════════════════════════════
+    RAILWAY BACKEND DEPLOYMENT - QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════
+
+📍 STEP 1: Go to https://railway.app
+   - Sign up with GitHub
+   - Authorize Railway
+
+📍 STEP 2: Deploy Backend
+   - New Project → Deploy from GitHub
+   - Select: yogeshmagatam/Online-Voting-System
+   - Branch: feature/yogesh/login
+   - Wait for build to complete
+
+📍 STEP 3: Add MongoDB
+   - Click "+ Add Service" in your project
+   - Add from Marketplace → MongoDB
+   - Wait 2-3 minutes
+
+📍 STEP 4: Set Environment Variables
+   Copy these into Railway Variables:
+
+   FLASK_ENV=production
+   FLASK_DEBUG=False
+   SECRET_KEY=your-secret-key-here
+   JWT_SECRET_KEY=your-jwt-secret-here
+   MAIL_USERNAME=your-gmail@gmail.com
+   MAIL_PASSWORD=your-app-password
+   MAIL_DEFAULT_SENDER=noreply@election.com
+   FRONTEND_ORIGIN=https://online-voting-system-six-flax.vercel.app
+   MONGO_URI=${{Mongo.MONGO_URL}}
+   RF_MODELS_DIR=/app/models/rf
+
+📍 STEP 5: Get Backend URL
+   - Go to your Python service in Railway
+   - Settings → Domains
+   - Copy the auto-generated URL
+
+📍 STEP 6: Update Vercel Frontend
+   - Go to Vercel dashboard
+   - Project Settings → Environment Variables
+   - Update REACT_APP_API_URL = your-railway-backend-url
+   - Redeploy
+
+═══════════════════════════════════════════════════════════════════
+
+🧪 TEST YOUR DEPLOYMENT:
+
+   1. Frontend: https://online-voting-system-six-flax.vercel.app
+   2. Register a test account
+   3. Login with email OTP
+   4. Verify identity
+   5. Cast a vote
+   6. Check Admin Dashboard
+
+═══════════════════════════════════════════════════════════════════
+
+⏱️  TIME: 15 minutes
+💰 COST: Free (Railway gives $5/month credits)
+
+═══════════════════════════════════════════════════════════════════
+
+For detailed instructions, see: DEPLOYMENT_COMPLETE.md
+For Railway-specific guide, see: backend/RAILWAY_DEPLOYMENT.md
+
+═══════════════════════════════════════════════════════════════════

@@ -3,7 +3,6 @@ import SiteLayout from './layout/SiteLayout.jsx';
 import IdentityVerification from './IdentityVerification.jsx';
 
 function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility, onNavigateToRegister, onNavigateToLogin, onNavigateToRegisterAdmin }) {
-  const [user, setUser] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [precincts, setPrecincts] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState('');
@@ -19,6 +18,7 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     fetchUserData();
     fetchCandidates();
     fetchPrecincts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchUserData = async () => {

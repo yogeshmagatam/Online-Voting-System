@@ -30,8 +30,6 @@ const QuickLinks = ({ onLoginClick, onRegisterClick, onRegisterAdminClick }) => 
   </section>
 );
 
-const Footer = () => null; // Footer is now provided by SiteLayout
-
 export default function Home({ onLoginClick, onRegisterClick, onRegisterAdminClick, onNavigateToHome, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility }) {
   return (
     <SiteLayout onLoginClick={onLoginClick} onRegisterClick={onRegisterClick} onNavigateToHome={onNavigateToHome} isLoggedIn={false} onNavigateToMission={onNavigateToMission} onNavigateToSecurity={onNavigateToSecurity} onNavigateToPrivacy={onNavigateToPrivacy} onNavigateToFAQ={onNavigateToFAQ} onNavigateToSupport={onNavigateToSupport} onNavigateToAccessibility={onNavigateToAccessibility}>
