@@ -1,6 +1,0 @@
-{
-  "name": "election-fraud-detection",
-  "description": "AI-Powered Election System with Fraud Detection",
-  "buildCommand": "pip install -r requirements.txt",
-  "startCommand": "gunicorn app_mongodb:app"
-}
