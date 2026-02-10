@@ -11,7 +11,6 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
   const [success, setSuccess] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [verificationDetails, setVerificationDetails] = useState(null);
-  const [useFileUpload, setUseFileUpload] = useState(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -74,9 +73,8 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
       }
       
       setCameraError(errorMessage);
-      // Hide camera UI and fall back to file upload if permission fails
+      // Hide camera UI if permission fails
       setCameraActive(false);
-      setUseFileUpload(true);
     }
   };
 
@@ -116,34 +114,6 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
     startCamera();
   };
 
-  // Handle file upload
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError('Please upload a valid image file');
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCapturedPhoto(event.target.result);
-        setError('');
-      };
-      reader.onerror = () => {
-        setError('Failed to read file');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   // Submit verification
   const handleSubmitVerification = async () => {
     if (!capturedPhoto) {
@@ -164,7 +134,7 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
         },
         body: JSON.stringify({
           live_photo: capturedPhoto,
-          camera_source: useFileUpload ? 'file_upload' : 'webcam'
+          camera_source: 'webcam'
         })
       });
 
@@ -313,7 +283,7 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
         {/* Camera Section */}
         {!capturedPhoto && (
           <div style={styles.section}>
-            {!cameraActive && !useFileUpload && (
+            {!cameraActive && (
               <div style={styles.buttonGroup}>
                 <button
                   onClick={startCamera}
@@ -326,18 +296,6 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
                   }}
                 >
                   📷 Start Camera
-                </button>
-                <button
-                  onClick={() => setUseFileUpload(true)}
-                  className="btn btn-secondary"
-                  style={{
-                    ...styles.secondaryButton,
-                    display: 'inline-block',
-                    visibility: 'visible',
-                    opacity: 1
-                  }}
-                >
-                  📁 Upload Photo Instead
                 </button>
               </div>
             )}
@@ -417,30 +375,7 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
               </div>
             )}
 
-            {useFileUpload && !cameraActive && (
-              <div style={styles.fileUploadSection}>
-                <label htmlFor="photo-upload" style={styles.fileLabel}>
-                  📁 Select Photo from Your Device
-                </label>
-                <input
-                  id="photo-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  style={styles.fileInput}
-                />
-                <button
-                  onClick={() => setUseFileUpload(false)}
-                  className="btn btn-secondary"
-                  style={styles.secondaryButton}
-                >
-                  Back to Camera
-                </button>
-                {cameraError && (
-                  <p style={{ color: '#dc3545', marginTop: '10px' }}>{cameraError}</p>
-                )}
-              </div>
-            )}
+
           </div>
         )}
 
@@ -664,28 +599,6 @@ const styles = {
     width: '100%',
     borderRadius: '4px',
     marginTop: '10px'
-  },
-  fileUploadSection: {
-    backgroundColor: '#f8f9fa',
-    padding: '20px',
-    borderRadius: '4px',
-    textAlign: 'center',
-    border: '2px dashed #ccc'
-  },
-  fileLabel: {
-    display: 'block',
-    marginBottom: '10px',
-    fontWeight: '500',
-    color: '#333'
-  },
-  fileInput: {
-    display: 'block',
-    width: '100%',
-    marginBottom: '15px',
-    padding: '8px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    cursor: 'pointer'
   }
 };
 
