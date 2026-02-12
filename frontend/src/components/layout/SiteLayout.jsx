@@ -17,6 +17,11 @@ export default function SiteLayout({ children, onLoginClick, onRegisterClick, on
       <header className="eci-header">
         <div className="eci-topbar">
           <div className="eci-topbar-left">Election System</div>
+          {isLoggedIn && (
+            <div className="eci-topbar-right">
+              <button className="eci-link" onClick={onLogout}>Logout</button>
+            </div>
+          )}
         </div>
         <div className="eci-brand">
           <div className="eci-logo" aria-hidden>
