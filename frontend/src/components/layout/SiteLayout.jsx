@@ -17,16 +17,6 @@ export default function SiteLayout({ children, onLoginClick, onRegisterClick, on
       <header className="eci-header">
         <div className="eci-topbar">
           <div className="eci-topbar-left">Election System</div>
-          <div className="eci-topbar-right">
-            {isLoggedIn ? (
-              <button className="eci-link" onClick={onLogout}>Logout</button>
-            ) : (
-              <>
-                <button className="eci-link eci-link-animated" onClick={onLoginClick}>Login</button>
-                <button className="eci-link eci-link-animated" onClick={onRegisterClick}>Register</button>
-              </>
-            )}
-          </div>
         </div>
         <div className="eci-brand">
           <div className="eci-logo" aria-hidden>
