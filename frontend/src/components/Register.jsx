@@ -8,7 +8,6 @@ function Register({ onNavigateToLogin }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [voterId, setVoterId] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [captcha, setCaptcha] = useState('');
   const [captchaText, setCaptchaText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +55,6 @@ function Register({ onNavigateToLogin }) {
         password,
         voter_id: voterId,
         email,
-        phone,
         captcha: captcha,
         photo: photoDataUrl
       };
@@ -81,7 +79,6 @@ function Register({ onNavigateToLogin }) {
       setConfirmPassword('');
   setVoterId('');
       setEmail('');
-      setPhone('');
       setCaptcha('');
       setPhotoDataUrl('');
   generateCaptcha();
@@ -306,17 +303,6 @@ function Register({ onNavigateToLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="phone">Phone (optional)</label>
-              <input
-                type="tel"
-                className="form-control"
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
               />
             </div>
 
