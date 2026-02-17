@@ -7,7 +7,7 @@ A comprehensive web-based voting system with **Random Forest** fraud detection u
 - **User Authentication**: Multi-factor authentication (MFA) with email OTP, password hashing with bcrypt
 - **Identity Verification**: Photo capture and verification system for voter identity validation
 - **Secure Voting**: End-to-end vote casting with behavioral tracking and transaction IDs
-- **AI Fraud Detection**: Real-time fraud detection using Random Forest algorithm (no cloud dependency)
+- **ML Fraud Detection**: Real-time fraud detection using Random Forest algorithm (no cloud dependency)
 - **Behavioral Analysis**: Tracks 20+ voter behavior features (login patterns, session data, device info)
 - **Admin Dashboard**: Comprehensive monitoring and fraud analytics with Chart.js visualizations
 - **Voter Dashboard**: Vote casting interface with identity verification
@@ -22,7 +22,7 @@ A comprehensive web-based voting system with **Random Forest** fraud detection u
 - **Frontend**: React 17+ with React Router v6, Bootstrap, Chart.js
 - **Backend**: Python with Flask and Flask-CORS
 - **Database**: MongoDB (local setup with optional Docker support)
-- **ML/AI**: Random Forest (scikit-learn), scikit-learn-based fraud detection
+- **ML**: Random Forest (scikit-learn), scikit-learn-based fraud detection
 - **Security**: JWT (flask-jwt-extended), bcrypt password hashing, email OTP, CORS protection
 - **Deployment**: Docker support, Gunicorn-ready
 - **Development**: Node.js/npm, Python venv
