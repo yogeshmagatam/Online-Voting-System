@@ -1,4 +1,4 @@
-# Election System with AI-Powered Fraud Detection
+# Election System with ML-Powered Fraud Detection
 
 A comprehensive web-based voting system with **Random Forest** fraud detection using machine learning to ensure election integrity. Built with React, Flask, MongoDB, and scikit-learn for a secure, scalable voting platform.
 
