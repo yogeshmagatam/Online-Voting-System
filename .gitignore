@@ -11,3 +11,4 @@ __pycache__/
 .vscode/
 *pkl
 ../__pycache__/
+backend/uploads/user_photos/*
