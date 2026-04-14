@@ -175,13 +175,25 @@ function IdentityVerification({ token, onVerificationComplete, onCancel }) {
         return;
       }
 
-      setSuccess('✓ Identity verified successfully!');
-      setVerificationDetails({
-        verified: true,
-        faceMatchConfidence: data.face_match_confidence,
-        livenessScore: data.liveness_score,
-        isGenuine: data.is_genuine
-      });
+      if (data.verified === true && data.is_genuine === true) {
+        setSuccess('✓ Identity verified successfully!');
+        setVerificationDetails({
+          verified: true,
+          faceMatchConfidence: data.face_match_confidence,
+          livenessScore: data.liveness_score,
+          isGenuine: data.is_genuine
+        });
+      } else {
+        setError(data.message || 'Verification failed');
+        setVerificationDetails({
+          fraudDetected: false,
+          faceMatchConfidence: data.face_match_confidence,
+          faceDistance: data.face_distance,
+          isGenuine: data.is_genuine
+        });
+        setCapturedPhoto(null);
+        return;
+      }
 
       // Notify parent component
       setTimeout(() => {
