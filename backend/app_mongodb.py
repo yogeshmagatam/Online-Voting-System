@@ -940,17 +940,14 @@ def verify_identity():
             # Attempt face match against stored registration photo
             user_id = get_jwt_identity()
             
-            # Check if MongoDB is available
+            # Face matching must always compare against the registered photo.
+            # If the database is unavailable, fail closed instead of approving the request.
             if not mongodb_available or users_collection is None:
-                print("[WARNING] MongoDB not available, skipping face matching")
+                print("[ERROR] MongoDB not available - refusing identity verification")
                 return jsonify({
-                    "verified": True,
-                    "is_genuine": True,
-                    "face_match_confidence": 0.85,
-                    "face_distance": None,
-                    "liveness_score": 0.8,
-                    "message": "Identity verified successfully (database unavailable - face matching skipped)"
-                }), 200
+                    "error": "Database unavailable",
+                    "message": "Identity verification requires access to your registered photo. Please try again when the database is available."
+                }), 503
             
             # Find user by username or _id
             user = users_collection.find_one({'username': user_id})
@@ -1169,10 +1166,11 @@ def verify_identity():
                         "message": f"An error occurred during face verification: {str(e)}"
                     }), 500
             else:
-                # face_recognition library not available
-                print(f"[WARNING] face_recognition library not available, skipping face matching")
-                face_match_confidence = 0.7
-                is_genuine = True
+                print(f"[ERROR] face_recognition library not available - refusing identity verification")
+                return jsonify({
+                    "error": "Face recognition unavailable",
+                    "message": "Identity verification is temporarily unavailable because the face recognition engine could not be loaded. Please contact support."
+                }), 503
 
             # Simple liveness heuristic (presence of a face + reasonable size)
 
