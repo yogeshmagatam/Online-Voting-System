@@ -5,9 +5,7 @@ import IdentityVerification from './IdentityVerification.jsx';
 
 function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecurity, onNavigateToPrivacy, onNavigateToFAQ, onNavigateToSupport, onNavigateToAccessibility, onNavigateToRegister, onNavigateToLogin, onNavigateToRegisterAdmin }) {
   const [candidates, setCandidates] = useState([]);
-  const [precincts, setPrecincts] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState('');
-  const [selectedPrecinct, setSelectedPrecinct] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,28 +45,10 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
     }
   }, [token]);
 
-  const fetchPrecincts = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/election-data`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPrecincts(data.precincts || []);
-      }
-    } catch (err) {
-      console.error('Error fetching precincts:', err);
-    }
-  }, [token]);
-
   useEffect(() => {
     fetchUserData();
     fetchCandidates();
-    fetchPrecincts();
-  }, [fetchUserData, fetchCandidates, fetchPrecincts]);
+  }, [fetchUserData, fetchCandidates]);
 
   const handleVerifyIdentity = () => {
     setShowVerification(true);
@@ -97,8 +77,8 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       return;
     }
 
-    if (!selectedCandidate || !selectedPrecinct) {
-      setError('Please select a candidate and precinct');
+    if (!selectedCandidate) {
+      setError('Please select a candidate');
       return;
     }
 
@@ -116,7 +96,6 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
         },
         body: JSON.stringify({
           vote: voteData,
-          precinct: selectedPrecinct,
           behavior_data: {
             timeSpent: 30,
             mouseMovements: [],
@@ -146,7 +125,6 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
       setSuccess(successMessage);
       setHasVoted(true);
       setSelectedCandidate('');
-      setSelectedPrecinct('');
     } catch (err) {
       setError(err.message);
     }
@@ -246,22 +224,6 @@ function VoterDashboard({ token, onLogout, onNavigateToMission, onNavigateToSecu
                     <option value="">-- Select a Candidate --</option>
                     {candidates.map((c, idx) => (
                       <option key={idx} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="precinct">Select Your Precinct</label>
-                  <select
-                    className="form-control"
-                    id="precinct"
-                    value={selectedPrecinct}
-                    onChange={(e) => setSelectedPrecinct(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Select a Precinct --</option>
-                    {precincts.map(p => (
-                      <option key={p} value={p}>{p}</option>
                     ))}
                   </select>
                 </div>
