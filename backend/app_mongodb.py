@@ -855,6 +855,34 @@ def verify_identity():
                         live_locations = face_recognition.face_locations(live_np, number_of_times_to_upsample=2, model='hog')
                     
                     print(f"[DEBUG] Detected {len(live_locations)} face(s) using dlib HOG")
+
+                    if len(live_locations) == 0:
+                        print(f"[DEBUG] Dlib HOG found no faces, falling back to OpenCV Haar Cascade...")
+                        live_bgr = cv2.cvtColor(live_np, cv2.COLOR_RGB2BGR)
+                        live_gray = cv2.cvtColor(live_bgr, cv2.COLOR_BGR2GRAY)
+                        live_gray = cv2.equalizeHist(live_gray)
+
+                        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                        face_cascade = cv2.CascadeClassifier(cascade_path)
+
+                        faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+
+                        if len(faces) == 0:
+                            print(f"[DEBUG] No faces with default params, trying more lenient settings...")
+                            faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.05, minNeighbors=2, minSize=(20, 20))
+
+                        if len(faces) == 0:
+                            print(f"[DEBUG] Still no faces, trying very lenient settings...")
+                            faces = face_cascade.detectMultiScale(live_gray, scaleFactor=1.02, minNeighbors=1, minSize=(15, 15))
+
+                        print(f"[DEBUG] OpenCV Haar Cascade detected {len(faces)} face(s)")
+
+                        if len(faces) > 1:
+                            print(f"[DEBUG] Multiple faces detected ({len(faces)}), keeping only the largest")
+                            faces = [max(faces, key=lambda f: f[2] * f[3])]
+
+                        live_locations = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
+                        print(f"[DEBUG] Converted to face_recognition format: {len(live_locations)} face(s)")
                     
                 except Exception as dlib_error:
                     print(f"[WARNING] dlib/HOG face detection failed: {dlib_error}")
@@ -916,11 +944,10 @@ def verify_identity():
                     
                     print(f"[DEBUG] Face quality - Size: {face_width}x{face_height}, Area: {face_percentage:.2f}% of image")
                     
-                    # Relaxed thresholds when using OpenCV fallback (less precise detection)
-                    # Face should be at least 0.5% of image (very lenient for OpenCV)
-                    if face_percentage < 0.5:
-                        fraud_indicators.append('face_too_small_in_frame')
-                        print(f"[WARNING] Face is extremely small ({face_percentage:.2f}% of frame)")
+                    # Keep the size check as a warning only. Small webcam crops can still be valid
+                    # and should not fail identity verification on their own.
+                    if face_percentage < 0.05:
+                        print(f"[WARNING] Face is small ({face_percentage:.2f}% of frame), but verification will continue")
                     
                     # Face should not be more than 95% of image
                     if face_percentage > 95:
@@ -1011,6 +1038,24 @@ def verify_identity():
                                 print(f"[DEBUG] HOG found no faces, trying with upsample=2...")
                                 ref_locations = face_recognition.face_locations(ref_np, number_of_times_to_upsample=2, model='hog')
                             print(f"[DEBUG] dlib HOG detected {len(ref_locations)} face(s) in registration photo")
+
+                            if len(ref_locations) == 0:
+                                print(f"[DEBUG] Dlib HOG found no faces in registration photo, falling back to OpenCV Haar Cascade...")
+                                ref_bgr = cv2.cvtColor(ref_np, cv2.COLOR_RGB2BGR)
+                                ref_gray = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2GRAY)
+                                ref_gray = cv2.equalizeHist(ref_gray)
+
+                                cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                                face_cascade = cv2.CascadeClassifier(cascade_path)
+
+                                faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+                                if len(faces) == 0:
+                                    faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.05, minNeighbors=2, minSize=(20, 20))
+                                if len(faces) == 0:
+                                    faces = face_cascade.detectMultiScale(ref_gray, scaleFactor=1.02, minNeighbors=1, minSize=(15, 15))
+
+                                ref_locations = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
+                                print(f"[DEBUG] OpenCV Haar Cascade found {len(ref_locations)} faces in registration photo")
                         except Exception as dlib_ref_error:
                             print(f"[WARNING] dlib HOG face detection failed for registration photo: {dlib_ref_error}")
                             # Fallback to OpenCV Haar Cascade
